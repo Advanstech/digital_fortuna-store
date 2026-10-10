@@ -95,7 +95,7 @@ export function BenefitsSection() {
               {/* Fortuna track */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs text-slate-300 font-mono">
-                  <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-[#00FF85]" /> Acquire on Digital Fortuna</span>
+                  <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-[#00FF85]" /> Acquire on Digital Fortuna Computing</span>
                   <span className="font-extrabold text-[#00FF85]">3 Days</span>
                 </div>
                 <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">

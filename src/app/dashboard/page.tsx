@@ -21,6 +21,8 @@ import {
   Bell
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { CurrencySwitcher } from "@/components/ui/currency-switcher";
+import { useCurrency } from "@/lib/currency";
 
 type TabType = "overview" | "profile" | "settings" | "admin";
 
@@ -28,6 +30,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { format: formatPrice } = useCurrency();
   const [userContext, setUserContext] = useState<{ email: string; role: string; userId: string } | null>(null);
   const [contactingBroker, setContactingBroker] = useState(false);
   const { toast } = useToast();
@@ -239,7 +242,7 @@ export default function DashboardPage() {
                               <span className="text-slate-500 text-xs font-mono">ID: {deal.id.split('-')[0]}</span>
                             </div>
                             <h3 className="text-xl font-bold text-white mb-1">Target: {deal.listingId}</h3>
-                            <p className="text-slate-400 text-sm">Negotiated Valuation: <span className="text-[#00FF85] font-semibold">${deal.agreedPrice?.toLocaleString() || "Pending Review"}</span></p>
+                            <p className="text-slate-400 text-sm">Negotiated Valuation: <span className="text-[#00FF85] font-semibold">{deal.agreedPrice != null ? formatPrice(deal.agreedPrice) : "Pending Review"}</span></p>
                           </div>
                           <Link href={`/deal/${deal.id}`}>
                             <Button className="bg-[#0A0F1E] border border-slate-700 text-white group-hover:border-[#00FF85] group-hover:text-[#00FF85] transition-all">
@@ -267,7 +270,7 @@ export default function DashboardPage() {
                         </li>
                         <li className="flex items-start gap-3">
                           <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
-                          <p>Welcome to Digital Fortuna <span className="text-slate-500 block text-xs mt-0.5">1 day ago</span></p>
+                          <p>Welcome to Digital Fortuna Computing <span className="text-slate-500 block text-xs mt-0.5">1 day ago</span></p>
                         </li>
                       </ul>
                     </div>
@@ -306,6 +309,21 @@ export default function DashboardPage() {
                     </div>
                     <div className="mt-6 flex justify-end">
                       <Button className="bg-[#00FF85] text-black hover:bg-[#00FF85]/80">Save Changes</Button>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#131A2E]/50 border border-slate-800 rounded-2xl p-8">
+                    <h3 className="text-lg font-bold text-white mb-2 border-b border-slate-800 pb-4">Regional Preferences</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4">
+                      <div>
+                        <h4 className="text-white font-medium">Display Currency</h4>
+                        <p className="text-sm text-slate-400">
+                          Prices are settled in USD — choose your preferred display currency for browsing and deal rooms.
+                        </p>
+                      </div>
+                      <div className="w-full sm:w-64 shrink-0">
+                        <CurrencySwitcher full />
+                      </div>
                     </div>
                   </div>
 

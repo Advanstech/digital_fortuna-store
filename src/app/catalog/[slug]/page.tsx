@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useCurrency } from "@/lib/currency";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -230,6 +231,7 @@ export default function ListingDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [entering, setEntering] = useState(false);
+  const { format: formatPrice } = useCurrency();
 
   useEffect(() => {
     const fetchListing = async () => {
@@ -237,8 +239,35 @@ export default function ListingDetailsPage() {
         const res = await fetch(`http://localhost:4000/v1/listings/${slug}`);
         if (res.ok) {
           const resJson = await res.json();
-          const apiData = resJson.data || resJson;
-          
+          const raw = resJson.data || resJson;
+
+          // Normalize API shape into the shape this page renders
+          const details = raw.details || {};
+          const apiData = {
+            ...raw,
+            price: raw.price
+              ?? (raw.acquisitionPrice
+                ? `$${Number(raw.acquisitionPrice).toLocaleString()}`
+                : raw.monthlyLicensePrice
+                  ? `$${Number(raw.monthlyLicensePrice).toLocaleString()}/mo`
+                  : "Contact"),
+            // Raw USD values for currency-aware display
+            priceUsd: Number(raw.acquisitionPrice) || Number(raw.monthlyLicensePrice) || null,
+            priceSuffix: !raw.acquisitionPrice && raw.monthlyLicensePrice ? "/mo" : "",
+            type: raw.type ?? (raw.monthlyLicensePrice && !raw.acquisitionPrice ? "saas" : "acquisition"),
+            images: raw.images ?? details.images
+              ?? (raw.media?.map((m: any) => m.url).filter(Boolean).length
+                ? raw.media.map((m: any) => m.url)
+                : raw.demoUrl ? [raw.demoUrl] : ["/images/premium_hero_bg.png"]),
+            techStack: Array.isArray(raw.techStack) ? raw.techStack : [],
+            // Sales collateral stored in the listing's details blob
+            highlights: raw.highlights ?? details.highlights,
+            metrics: raw.metrics ?? details.metrics,
+            benefits: raw.benefits ?? details.benefits,
+            relevance: raw.relevance ?? details.relevance,
+            growth: raw.growth ?? details.growth,
+          };
+
           // If the backend returns a generic placeholder (like mock-1) instead of the actual slug, use the high-fidelity frontend mock.
           if (MOCK_DETAILS[slug] && apiData.id !== slug) {
             setListing(MOCK_DETAILS[slug]);
@@ -276,7 +305,8 @@ export default function ListingDetailsPage() {
       });
       if (res.ok) {
         const deal = await res.json();
-        router.push(`/deal/${deal.id}`);
+        const dealId = deal.data?.id || deal.id;
+        router.push(`/deal/${dealId}`);
       } else {
         router.push(`/deal/${listing.id}`);
       }
@@ -539,7 +569,9 @@ export default function ListingDetailsPage() {
               {/* Price header */}
               <div className="px-7 pt-7 pb-5 border-b border-slate-800">
                 <p className="text-slate-500 text-xs uppercase tracking-widest font-mono mb-1">Asking Price</p>
-                <p className="text-4xl font-extrabold text-white font-display">{listing.price}</p>
+                <p className="text-4xl font-extrabold text-white font-display">
+                  {listing.priceUsd != null ? formatPrice(listing.priceUsd, { suffix: listing.priceSuffix }) : listing.price}
+                </p>
                 <span className="inline-block mt-2 text-xs bg-[#00FF85]/10 border border-[#00FF85]/30 text-[#00FF85] px-2 py-0.5 rounded-full font-mono uppercase tracking-wider">
                   {listing.type === "saas" ? "SaaS License" : "Full Acquisition"}
                 </span>

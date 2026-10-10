@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut, LayoutDashboard, Compass, PlusCircle, ShieldAlert } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/toast";
+import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 
 export function SiteHeader() {
   const router = useRouter();
@@ -57,6 +58,9 @@ export function SiteHeader() {
 
         {/* Action Controls & Responsive Mobile Button */}
         <div className="flex items-center gap-4">
+          <div className="hidden md:block">
+            <CurrencySwitcher />
+          </div>
           <div className="hidden md:flex items-center gap-4">
             {!isLoggedIn ? (
               <>
@@ -139,6 +143,10 @@ export function SiteHeader() {
                 About Us
               </Link>
               
+              <div className="pt-2">
+                <CurrencySwitcher full />
+              </div>
+
               <div className="h-[1px] bg-slate-800 my-2" />
 
               {!isLoggedIn ? (

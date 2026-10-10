@@ -51,10 +51,10 @@ export default function AboutPage() {
     {
       name: "Hanson Peprah",
       role: "Co-Founder & CEO",
-      bio: "Former M&A Director at a top-tier tech private equity firm. Hanson saw the friction in micro-SaaS acquisitions and built Digital Fortuna to automate trust.",
+      bio: "Former M&A Director at a top-tier tech private equity firm. Hanson saw the friction in micro-SaaS acquisitions and built Digital Fortuna Computing to automate trust.",
       image: "/images/founder_1.jpg",
       details: [
-        "Led over $400M in tech acquisitions before founding Digital Fortuna.",
+        "Led over $400M in tech acquisitions before founding Digital Fortuna Computing.",
         "Stanford GSB Alumni.",
         "Passionate about democratizing exit opportunities for solo founders."
       ],
@@ -110,7 +110,7 @@ export default function AboutPage() {
             transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
             className="text-slate-400 text-xl md:text-2xl font-light leading-relaxed max-w-3xl mx-auto"
           >
-            Digital Fortuna is the definitive global launchpad for tech entrepreneurship. We turn lines of code into life-changing acquisitions so you can focus on building the future.
+            Digital Fortuna Computing is the definitive global launchpad for tech entrepreneurship. We turn lines of code into life-changing acquisitions so you can focus on building the future.
           </motion.p>
         </section>
 
@@ -132,7 +132,7 @@ export default function AboutPage() {
                 Born out of the vibrant tech hub in <strong className="text-white font-semibold">Accra, Ghana</strong>, we saw an opportunity to build a bridge. We engineered a platform that removes the friction from M&A—injecting AI-driven valuation and military-grade escrow into the heart of every deal.
               </p>
               <p>
-                Today, Digital Fortuna is the premium trusted intermediary where elite codebases find elite capital.
+                Today, Digital Fortuna Computing is the premium trusted intermediary where elite codebases find elite capital.
               </p>
             </div>
           </motion.div>
@@ -148,7 +148,7 @@ export default function AboutPage() {
               <div className="absolute inset-0 bg-gradient-to-br from-[#00FF85]/20 to-[#0080FF]/20 mix-blend-overlay z-10" />
               <Image 
                 src="/images/premium_hero_bg.png" 
-                alt="Digital Fortuna Abstract Concept" 
+                alt="Digital Fortuna Computing Abstract Concept" 
                 fill 
                 className="object-cover grayscale hover:grayscale-0 transition-all duration-700" 
               />
@@ -281,7 +281,7 @@ export default function AboutPage() {
                 Ready to Join the <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500">Revolution of Builders?</span>
               </h2>
               <p className="text-slate-400 text-lg md:text-xl font-light leading-relaxed">
-                Whether you are listing a passion project or acquiring a scale-ready infrastructure, Digital Fortuna is where the global creator class converges.
+                Whether you are listing a passion project or acquiring a scale-ready infrastructure, Digital Fortuna Computing is where the global creator class converges.
               </p>
               <div className="pt-6 flex flex-col sm:flex-row gap-4 justify-center">
                 <Button 
@@ -311,6 +311,7 @@ export default function AboutPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSelectedLeader(null)}
+            data-lenis-prevent
             className="fixed inset-0 bg-[#0A0F1E]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
           >
             <motion.div

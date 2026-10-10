@@ -19,6 +19,7 @@ import {
   Loader2,
   FileCode
 } from "lucide-react";
+import { useCurrency } from "@/lib/currency";
 
 const MOCK_DEAL_DATA: Record<string, any> = {
   "mock-1": { 
@@ -86,6 +87,7 @@ export default function DealRoomPage() {
   const [generatedDocs, setGeneratedDocs] = useState<string[]>([]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const { format: formatPrice } = useCurrency();
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -235,7 +237,9 @@ export default function DealRoomPage() {
               <div className="border-t border-slate-800/80 pt-4 space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Acquisition Price:</span>
-                  <span className="text-white font-bold text-base font-mono">{deal.price}</span>
+                  <span className="text-white font-bold text-base font-mono">
+                    {deal.agreedPrice != null ? formatPrice(deal.agreedPrice) : deal.price}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">EBITDA Multiple:</span>
@@ -326,7 +330,7 @@ export default function DealRoomPage() {
               {invoices.map((inv) => (
                 <div key={inv.id} className="bg-[#0A0F1E]/50 border border-slate-800/80 p-4 rounded-2xl relative overflow-hidden">
                   <p className="text-slate-200 font-semibold mb-1 text-xs">{inv.description}</p>
-                  <p className="text-[#00FF85] text-xs font-mono mb-3">${inv.amount.toLocaleString()}</p>
+                  <p className="text-[#00FF85] text-xs font-mono mb-3">{formatPrice(inv.amount)}</p>
                   <div className="flex justify-between items-center pt-2 border-t border-slate-800/40">
                     <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${
                       inv.status === 'paid' 
@@ -373,8 +377,9 @@ export default function DealRoomPage() {
           </div>
 
           {/* Chat Feed */}
-          <div 
+          <div
             ref={chatContainerRef}
+            data-lenis-prevent
             className="flex-1 p-6 space-y-6 overflow-y-auto"
           >
             <div className="flex flex-col justify-end min-h-full space-y-6">

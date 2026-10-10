@@ -171,8 +171,29 @@ export default function SellPage() {
       const payload = {
         title: formData.title,
         category: formData.category,
-        acquisitionPrice: parseFloat(formData.acquisitionPrice) || 0,
-        description: `Tech Stack: ${formData.techStack}\n\nMRR: $${formData.mrr}\nARR: $${formData.arr}\nProfit Margin: ${formData.profitMargin}%\n\nWhy Selling:\n${formData.whySelling}\n\nDescription:\n${formData.description}\n\nBenefits:\n${formData.benefits}\n\nRelevance:\n${formData.relevance}\n\nGrowth:\n${formData.growth}`,
+        acquisitionPrice: parseFloat(formData.acquisitionPrice) || undefined,
+        revenueMrr: parseFloat(formData.mrr) || undefined,
+        revenueArr: parseFloat(formData.arr) || undefined,
+        description: `Why Selling:\n${formData.whySelling}\n\n${formData.description}`,
+        techStack: formData.techStack
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        // Rich sales collateral rendered on the listing detail page
+        details: {
+          benefits: formData.benefits
+            ? formData.benefits.split(",").map((b) => ({ title: b.trim(), desc: "" })).filter((b) => b.title)
+            : [],
+          relevance: formData.relevance,
+          growth: formData.growth
+            ? formData.growth.split("\n").map((g) => g.trim()).filter(Boolean)
+            : [],
+          metrics: [
+            formData.mrr && { label: "MRR", value: `$${Number(formData.mrr).toLocaleString()}`, icon: "DollarSign" },
+            formData.arr && { label: "ARR", value: `$${Number(formData.arr).toLocaleString()}`, icon: "TrendingUp" },
+            formData.profitMargin && { label: "Profit Margin", value: `${formData.profitMargin}%`, icon: "BarChart3" },
+          ].filter(Boolean),
+        },
       };
 
       const res = await fetch("http://localhost:4000/v1/listings", {
@@ -238,7 +259,7 @@ export default function SellPage() {
           </motion.div>
           
           <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight font-display mb-3">
-            List Your Venture on <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00FF85] to-[#0080FF]">Digital Fortuna</span>
+            List Your Venture on <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00FF85] to-[#0080FF]">Digital Fortuna Computing</span>
           </h1>
           <p className="text-slate-400 text-lg max-w-2xl font-light">
             Skip the raw, complicated forms. Our vertical wizard optimizes your startup snapshot, estimates standard market multiples, and secures your high-end listing in minutes.
@@ -729,7 +750,7 @@ export default function SellPage() {
                         <div className="p-4 bg-[#00FF85]/5 border border-[#00FF85]/10 rounded-2xl flex gap-3">
                           <TrendingUp className="w-5 h-5 text-[#00FF85] flex-shrink-0 mt-0.5" />
                           <p className="text-xs text-slate-400 leading-relaxed">
-                            <strong>Did you know?</strong> Digital Fortuna buyers actively look for listings between 4x - 6.5x ARR. Your current pricing position increases buyer negotiation matching speed by up to 45%.
+                            <strong>Did you know?</strong> Digital Fortuna Computing buyers actively look for listings between 4x - 6.5x ARR. Your current pricing position increases buyer negotiation matching speed by up to 45%.
                           </p>
                         </div>
                       </div>

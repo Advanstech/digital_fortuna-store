@@ -67,7 +67,7 @@ export default function AdminConsole() {
           <span className="font-bold text-white tracking-wide font-display">Command Center</span>
         </div>
         
-        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+        <nav data-lenis-prevent className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
           <button 
             onClick={() => setActiveTab("overview")}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
@@ -155,7 +155,7 @@ export default function AdminConsole() {
         </header>
 
         {/* SCROLLABLE CONTENT */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative">
+        <main data-lenis-prevent className="flex-1 overflow-y-auto p-6 lg:p-10 relative">
           {/* Ambient Glow */}
           <div className="absolute top-[-20%] left-[20%] w-[600px] h-[600px] bg-[#00FF85]/5 rounded-full blur-[140px] pointer-events-none" />
 

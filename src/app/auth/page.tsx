@@ -13,13 +13,16 @@ import {
   Sparkles, 
   ArrowRight, 
   CheckCircle,
-  HelpCircle
+  HelpCircle,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [authCode, setAuthCode] = useState("");
   const [needs2FA, setNeeds2FA] = useState(false);
   const [userId, setUserId] = useState("");
@@ -66,7 +69,7 @@ export default function AuthPage() {
       const res = await fetch(`http://localhost:4000/v1/auth/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
       const resJson = await res.json();
       const apiData = resJson.data || resJson;
@@ -183,14 +186,24 @@ export default function AuthPage() {
                       <label className="text-slate-300 text-sm font-medium flex items-center gap-2">
                         <Lock className="w-4 h-4 text-[#0080FF]" /> Password
                       </label>
-                      <input 
-                        required
-                        type="password" 
-                        className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white outline-none transition-all placeholder-slate-600"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
+                      <div className="relative">
+                        <input
+                          required
+                          type={showPassword ? "text" : "password"}
+                          className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 pr-12 text-white outline-none transition-all placeholder-slate-600"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 ) : (
