@@ -66,66 +66,7 @@ interface UserItem {
   };
 }
 
-const FALLBACK_USERS: UserItem[] = [
-  {
-    id: "usr_01",
-    email: "hanson.pepra@gmail.com",
-    displayName: "Hanson Peprah",
-    companyName: "Digital Fortuna Computing",
-    role: "buyer",
-    kycStatus: "pending",
-    subscriptionTier: "pro",
-    createdAt: new Date().toISOString(),
-    kycData: {
-      idType: "passport",
-      idNumber: "GHA-78901234-9",
-      documentUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=400&q=80",
-      submittedAt: new Date().toISOString()
-    }
-  },
-  {
-    id: "usr_02",
-    email: "kwame.mensah@fintechgh.io",
-    displayName: "Kwame Mensah",
-    companyName: "Fintech Gateways Africa",
-    role: "seller",
-    kycStatus: "verified",
-    subscriptionTier: "enterprise",
-    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    kycData: {
-      idType: "national_id",
-      idNumber: "GHA-55129012-1",
-      documentUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=400&q=80",
-      submittedAt: new Date(Date.now() - 86400000 * 3).toISOString()
-    }
-  },
-  {
-    id: "usr_03",
-    email: "founder@jarvis-os.ai",
-    displayName: "Leo Trieu",
-    companyName: "Agent OS Technologies",
-    role: "seller",
-    kycStatus: "verified",
-    subscriptionTier: "enterprise",
-    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-    kycData: {
-      idType: "passport",
-      idNumber: "AUS-99120485",
-      documentUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=400&q=80",
-      submittedAt: new Date(Date.now() - 86400000 * 5).toISOString()
-    }
-  },
-  {
-    id: "usr_04",
-    email: "amara.okafor@lagosventures.ng",
-    displayName: "Amara Okafor",
-    companyName: "Lagos VC Partners",
-    role: "vc",
-    kycStatus: "unverified",
-    subscriptionTier: "free",
-    createdAt: new Date(Date.now() - 86400000 * 7).toISOString()
-  }
-];
+
 
 const INITIAL_LOGS = [
   { id: "log-1", timestamp: "15:20:12", level: "SECURITY", service: "kyc-guard", message: "Enforced KycGuard on POST /v1/deals (blocked unverified attempt usr_04)" },
@@ -141,10 +82,13 @@ export default function AdminConsole() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [usersList, setUsersList] = useState<UserItem[]>(FALLBACK_USERS);
+  const [usersList, setUsersList] = useState<UserItem[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [selectedUserDoc, setSelectedUserDoc] = useState<UserItem | null>(null);
   const [processingKycId, setProcessingKycId] = useState<string | null>(null);
+
+  // Admin metrics
+  const [adminMetrics, setAdminMetrics] = useState<any>(null);
 
   // Listings state
   const [listingsList, setListingsList] = useState<any[]>([]);
@@ -215,11 +159,27 @@ export default function AdminConsole() {
       window.location.href = "/auth";
       return;
     }
-    // Grant access for review
     setIsAuthorized(true);
     fetchUsers(token);
     fetchListings(token);
+    fetchAdminMetrics(token);
   }, []);
+
+  const fetchAdminMetrics = async (token?: string) => {
+    const authToken = token || localStorage.getItem("access_token");
+    if (!authToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/admin/metrics`, {
+        headers: { "Authorization": `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        const rawJson = await res.json();
+        setAdminMetrics(rawJson.data || rawJson);
+      }
+    } catch {
+      // Metrics unavailable
+    }
+  };
 
   const fetchUsers = async (token?: string) => {
     const authToken = token || localStorage.getItem("access_token");
@@ -334,6 +294,11 @@ export default function AdminConsole() {
 
 
   const handleUpdateKyc = async (userId: string, newStatus: "verified" | "rejected") => {
+    let reason: string | undefined;
+    if (newStatus === "rejected") {
+      reason = prompt("Enter rejection reason (visible to the user):") || undefined;
+      if (!reason) return; // cancelled
+    }
     setProcessingKycId(userId);
     try {
       const token = localStorage.getItem("access_token");
@@ -343,7 +308,7 @@ export default function AdminConsole() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus, reason })
       });
       if (res.ok) {
         toast(`KYC successfully marked as ${newStatus}`, "success");
@@ -683,29 +648,29 @@ export default function AdminConsole() {
                   <div className="bg-[#0A0F1E]/80 border border-slate-800 rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm">
                     <div className="absolute top-0 right-0 p-4 opacity-10"><CreditCard className="w-16 h-16" /></div>
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Total GMV</span>
-                    <h3 className="text-3xl font-extrabold text-white font-display mb-1">$14.2M</h3>
-                    <p className="text-emerald-400 text-xs font-semibold flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +12.4% vs last month</p>
+                    <h3 className="text-3xl font-extrabold text-white font-display mb-1">${adminMetrics?.gmv != null ? (adminMetrics.gmv / 100).toLocaleString() : "—"}</h3>
+                    <p className="text-slate-400 text-xs font-semibold">{adminMetrics?.totalDeals ?? 0} deals total</p>
                   </div>
                   
                   <div className="bg-[#0A0F1E]/80 border border-slate-800 rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm">
                     <div className="absolute top-0 right-0 p-4 opacity-10"><Users className="w-16 h-16" /></div>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Active Users</span>
-                    <h3 className="text-3xl font-extrabold text-white font-display mb-1">4,092</h3>
-                    <p className="text-emerald-400 text-xs font-semibold flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +8.1% vs last month</p>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Total Users</span>
+                    <h3 className="text-3xl font-extrabold text-white font-display mb-1">{adminMetrics?.totalUsers?.toLocaleString() ?? "—"}</h3>
+                    <p className="text-slate-400 text-xs font-semibold">{usersList.filter(u => u.kycStatus === 'verified').length} KYC verified</p>
                   </div>
 
                   <div className="bg-[#0A0F1E]/80 border border-slate-800 rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm">
                     <div className="absolute top-0 right-0 p-4 opacity-10"><Briefcase className="w-16 h-16" /></div>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Active Listings</span>
-                    <h3 className="text-3xl font-extrabold text-white font-display mb-1">156</h3>
-                    <p className="text-emerald-400 text-xs font-semibold flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +24 new this week</p>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Total Listings</span>
+                    <h3 className="text-3xl font-extrabold text-white font-display mb-1">{adminMetrics?.totalListings ?? listingsList.length}</h3>
+                    <p className="text-slate-400 text-xs font-semibold">{adminMetrics?.listingsByStatus?.review ?? 0} pending review</p>
                   </div>
 
                   <div className="bg-[#0A0F1E]/80 border border-slate-800 rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm">
                     <div className="absolute top-0 right-0 p-4 opacity-10"><FolderLock className="w-16 h-16" /></div>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Funds in Escrow</span>
-                    <h3 className="text-3xl font-extrabold text-[#00FF85] font-display mb-1">$2.8M</h3>
-                    <p className="text-slate-400 text-xs font-semibold flex items-center gap-1">Across 12 pending deals</p>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Escrow Balance</span>
+                    <h3 className="text-3xl font-extrabold text-[#00FF85] font-display mb-1">${adminMetrics?.escrowBalance != null ? (adminMetrics.escrowBalance / 100).toLocaleString() : "—"}</h3>
+                    <p className="text-slate-400 text-xs font-semibold">${adminMetrics?.platformRevenue != null ? (adminMetrics.platformRevenue / 100).toLocaleString() : "0"} platform revenue</p>
                   </div>
                 </div>
 

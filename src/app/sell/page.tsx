@@ -33,10 +33,19 @@ const STEPS = [
 const INITIAL_FORM_DATA = {
   title: "",
   category: "saas",
+  businessModel: "subscription",
   acquisitionPrice: "",
   mrr: "",
   arr: "",
-  profitMargin: "85",
+  monthlyProfit: "",
+  profitMargin: "",
+  customerCount: "",
+  churnRate: "",
+  trafficMonthly: "",
+  businessAge: "",
+  teamSize: "",
+  growthTrend: "growing",
+  country: "",
   techStack: "",
   description: "",
   whySelling: "",
@@ -48,6 +57,9 @@ const INITIAL_FORM_DATA = {
   logoUrl: "",
   screenshotUrl: "",
   pitchDeckUrl: "",
+  pnlUrl: "",
+  analyticsUrl: "",
+  revenueProofUrl: "",
 };
 
 export default function SellPage() {
@@ -244,19 +256,30 @@ export default function SellPage() {
     try {
       const token = localStorage.getItem("access_token");
       
-      // Structure payload for backend schema (using fallback empty values if fields aren't specified)
-      const payload = {
+      // Structure payload for backend schema
+      const payload: Record<string, any> = {
         title: formData.title,
         category: formData.category,
+        businessModel: formData.businessModel || undefined,
         acquisitionPrice: parseFloat(formData.acquisitionPrice) || undefined,
         revenueMrr: parseFloat(formData.mrr) || undefined,
         revenueArr: parseFloat(formData.arr) || undefined,
-        description: `Why Selling:\n${formData.whySelling}\n\n${formData.description}`,
+        monthlyProfit: parseFloat(formData.monthlyProfit) || undefined,
+        profitMargin: parseInt(formData.profitMargin) || undefined,
+        customerCount: parseInt(formData.customerCount || formData.activeUsers) || undefined,
+        churnRate: formData.churnRate ? Math.round(parseFloat(formData.churnRate) * 100) : undefined,
+        trafficMonthly: parseInt(formData.trafficMonthly) || undefined,
+        businessAge: parseInt(formData.businessAge) || undefined,
+        teamSize: parseInt(formData.teamSize) || undefined,
+        growthTrend: formData.growthTrend || undefined,
+        reasonForSelling: formData.whySelling || undefined,
+        country: formData.country || undefined,
+        description: formData.description,
+        contactEmail: formData.contactEmail || undefined,
         techStack: formData.techStack
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean),
-        // Rich sales collateral rendered on the listing detail page
         details: {
           benefits: formData.benefits
             ? formData.benefits.split(",").map((b) => ({ title: b.trim(), desc: "" })).filter((b) => b.title)
@@ -276,6 +299,11 @@ export default function SellPage() {
             screenshot: formData.screenshotUrl,
             pitchDeck: formData.pitchDeckUrl
           }
+        },
+        sellerDocuments: {
+          pnl: formData.pnlUrl || undefined,
+          analytics: formData.analyticsUrl || undefined,
+          revenueProof: formData.revenueProofUrl || undefined,
         },
       };
 
@@ -550,12 +578,35 @@ export default function SellPage() {
                               <option value="mobile">Mobile Application</option>
                               <option value="blockchain">Web3 & Blockchain</option>
                               <option value="ecommerce">E-commerce Brand</option>
-                              <option value="ai">AI Tool / Generator</option>
+                              <option value="fintech">Fintech</option>
+                              <option value="edtech">EdTech</option>
+                              <option value="marketing">Marketing / AdTech</option>
+                              <option value="other">Other</option>
                             </select>
                           </div>
 
                           <div className="space-y-2">
-                            <label className="block text-slate-300 font-medium">Support Contact Email</label>
+                            <label className="block text-slate-300 font-medium">Business Model</label>
+                            <select 
+                              className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white outline-none transition-all cursor-pointer"
+                              value={formData.businessModel}
+                              onChange={(e) => setFormData({...formData, businessModel: e.target.value})}
+                            >
+                              <option value="subscription">Subscription / Recurring</option>
+                              <option value="one_time">One-time Purchase</option>
+                              <option value="marketplace">Marketplace / Commission</option>
+                              <option value="advertising">Advertising / Sponsorship</option>
+                              <option value="freemium">Freemium</option>
+                              <option value="licensing">Licensing</option>
+                              <option value="hybrid">Hybrid</option>
+                              <option value="other">Other</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-medium">Contact Email</label>
                             <input 
                               required
                               type="email" 
@@ -565,16 +616,16 @@ export default function SellPage() {
                               onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
                             />
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="block text-slate-300 font-medium">Active Users / Customers</label>
-                          <input 
-                            type="number" 
-                            className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
-                            placeholder="e.g. 1500"
-                            value={formData.activeUsers}
-                            onChange={(e) => setFormData({...formData, activeUsers: e.target.value})}
-                          />
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-medium">Country (Incorporation)</label>
+                            <input 
+                              type="text" 
+                              className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
+                              placeholder="e.g. Ghana, USA, UK"
+                              value={formData.country}
+                              onChange={(e) => setFormData({...formData, country: e.target.value})}
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -654,9 +705,9 @@ export default function SellPage() {
 
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                              <label className="block text-slate-300 font-medium">Yearly Recurring Revenue (ARR)</label>
+                              <label className="block text-slate-300 font-medium">Annual Recurring Revenue (ARR)</label>
                               <button type="button" onClick={handleAiComputeARR} className="text-xs text-[#0080FF] hover:text-[#00FF85] flex items-center gap-1 font-semibold bg-[#0080FF]/10 px-2 py-1 rounded transition-colors">
-                                <Sparkles className="w-3 h-3" /> AI Compute
+                                <Sparkles className="w-3 h-3" /> Compute
                               </button>
                             </div>
                             <div className="relative">
@@ -670,6 +721,96 @@ export default function SellPage() {
                               />
                             </div>
                             <p className="text-xs text-slate-500">Auto-filled if empty based on MRR x 12.</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-medium">Monthly Net Profit</label>
+                            <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                              <input 
+                                type="number" 
+                                className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 pl-8 text-white placeholder-slate-600 outline-none transition-all" 
+                                placeholder="3000"
+                                value={formData.monthlyProfit}
+                                onChange={(e) => setFormData({...formData, monthlyProfit: e.target.value})}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-medium">Monthly Churn Rate (%)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                step="0.1"
+                                className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 pr-10 text-white placeholder-slate-600 outline-none transition-all" 
+                                placeholder="2.5"
+                                value={formData.churnRate}
+                                onChange={(e) => setFormData({...formData, churnRate: e.target.value})}
+                              />
+                              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-medium">Paying Customers</label>
+                            <input 
+                              type="number" 
+                              className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
+                              placeholder="500"
+                              value={formData.customerCount}
+                              onChange={(e) => setFormData({...formData, customerCount: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-medium">Monthly Traffic</label>
+                            <input 
+                              type="number" 
+                              className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
+                              placeholder="25000"
+                              value={formData.trafficMonthly}
+                              onChange={(e) => setFormData({...formData, trafficMonthly: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-medium">Business Age (months)</label>
+                            <input 
+                              type="number" 
+                              className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
+                              placeholder="18"
+                              value={formData.businessAge}
+                              onChange={(e) => setFormData({...formData, businessAge: e.target.value})}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-medium">Team Size</label>
+                            <input 
+                              type="number" 
+                              className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
+                              placeholder="3"
+                              value={formData.teamSize}
+                              onChange={(e) => setFormData({...formData, teamSize: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-medium">Revenue Growth Trend</label>
+                            <select 
+                              className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white outline-none transition-all cursor-pointer"
+                              value={formData.growthTrend}
+                              onChange={(e) => setFormData({...formData, growthTrend: e.target.value})}
+                            >
+                              <option value="accelerating">Accelerating (fast growth)</option>
+                              <option value="growing">Growing (steady upward)</option>
+                              <option value="stable">Stable (consistent)</option>
+                              <option value="declining">Declining</option>
+                            </select>
                           </div>
                         </div>
                       </div>
@@ -825,7 +966,7 @@ export default function SellPage() {
                         </div>
 
                         <div className="space-y-2">
-                          <label className="block text-slate-300 font-medium">Pitch Deck or P&L (URL)</label>
+                          <label className="block text-slate-300 font-medium">Pitch Deck URL</label>
                           <input 
                             type="url" 
                             className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
@@ -833,14 +974,54 @@ export default function SellPage() {
                             value={formData.pitchDeckUrl}
                             onChange={(e) => setFormData({...formData, pitchDeckUrl: e.target.value})}
                           />
-                          <details className="mt-2 group">
-                            <summary className="text-xs text-[#0080FF] hover:text-[#00FF85] cursor-pointer font-medium list-none flex items-center gap-1">
-                              <HelpCircle className="w-3 h-3" /> Why do I need a P&L?
-                            </summary>
-                            <div className="mt-2 text-xs text-slate-400 bg-slate-800/30 p-3 rounded-lg border border-slate-800">
-                              A Profit & Loss (P&L) statement gives buyers confidence in your numbers. It proves your MRR and expenses are accurate, which speeds up escrow and avoids renegotiations later.
+                        </div>
+
+                        <div className="border-t border-slate-800 pt-6 mt-6">
+                          <h3 className="text-white font-bold mb-1">Seller Verification Documents</h3>
+                          <p className="text-xs text-slate-400 mb-4">These accelerate buyer confidence and due diligence. Listings with documentation close faster.</p>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                              <label className="block text-slate-300 font-medium">P&L Statement URL</label>
+                              <input 
+                                type="url" 
+                                className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
+                                placeholder="Link to P&L spreadsheet or PDF"
+                                value={formData.pnlUrl}
+                                onChange={(e) => setFormData({...formData, pnlUrl: e.target.value})}
+                              />
+                              <details className="mt-2 group">
+                                <summary className="text-xs text-[#0080FF] hover:text-[#00FF85] cursor-pointer font-medium list-none flex items-center gap-1">
+                                  <HelpCircle className="w-3 h-3" /> Why P&L matters
+                                </summary>
+                                <div className="mt-2 text-xs text-slate-400 bg-slate-800/30 p-3 rounded-lg border border-slate-800">
+                                  A Profit & Loss statement proves your revenue and expenses are real. It speeds up due diligence and avoids renegotiations.
+                                </div>
+                              </details>
                             </div>
-                          </details>
+
+                            <div className="space-y-2">
+                              <label className="block text-slate-300 font-medium">Analytics / Traffic Proof URL</label>
+                              <input 
+                                type="url" 
+                                className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
+                                placeholder="Google Analytics, Plausible, or similar"
+                                value={formData.analyticsUrl}
+                                onChange={(e) => setFormData({...formData, analyticsUrl: e.target.value})}
+                              />
+                            </div>
+
+                            <div className="space-y-2 md:col-span-2">
+                              <label className="block text-slate-300 font-medium">Revenue Verification URL</label>
+                              <input 
+                                type="url" 
+                                className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white placeholder-slate-600 outline-none transition-all" 
+                                placeholder="Stripe dashboard screenshot, payment processor export, or bank statement"
+                                value={formData.revenueProofUrl}
+                                onChange={(e) => setFormData({...formData, revenueProofUrl: e.target.value})}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -943,27 +1124,50 @@ export default function SellPage() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#0A0F1E]/50 p-6 rounded-2xl border border-slate-800/80">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-[#0A0F1E]/50 p-6 rounded-2xl border border-slate-800/80">
                           <div>
-                            <span className="text-xs text-slate-500 uppercase block mb-1">Venture Brand Name</span>
-                            <span className="text-lg font-bold text-white font-display">{formData.title || "Untitled Venture"}</span>
+                            <span className="text-xs text-slate-500 uppercase block mb-1">Venture Name</span>
+                            <span className="text-lg font-bold text-white font-display">{formData.title || "Untitled"}</span>
                           </div>
-
                           <div>
-                            <span className="text-xs text-slate-500 uppercase block mb-1">buyout asking price</span>
-                            <span className="text-lg font-bold text-[#00FF85] font-display">${parseFloat(formData.acquisitionPrice || "0").toLocaleString()} USD</span>
+                            <span className="text-xs text-slate-500 uppercase block mb-1">Asking Price</span>
+                            <span className="text-lg font-bold text-[#00FF85] font-display">${parseFloat(formData.acquisitionPrice || "0").toLocaleString()}</span>
                           </div>
-
                           <div>
-                            <span className="text-xs text-slate-500 uppercase block mb-1">mrr & growth position</span>
+                            <span className="text-xs text-slate-500 uppercase block mb-1">Category / Model</span>
+                            <span className="text-sm font-semibold text-slate-300 capitalize">{formData.category} / {formData.businessModel?.replace('_', ' ')}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-slate-500 uppercase block mb-1">MRR / ARR</span>
                             <span className="text-sm font-semibold text-slate-300">
-                              MRR: ${parseFloat(formData.mrr || "0").toLocaleString()} ARR: ${parseFloat(formData.arr || "0").toLocaleString()} (Margin: {formData.profitMargin}%)
+                              ${parseFloat(formData.mrr || "0").toLocaleString()} / ${parseFloat(formData.arr || "0").toLocaleString()}
                             </span>
                           </div>
-
                           <div>
-                            <span className="text-xs text-slate-500 uppercase block mb-1">Architecture tech stack</span>
-                            <span className="text-sm font-semibold text-slate-300 max-w-xs block truncate">{formData.techStack || "Not Specified"}</span>
+                            <span className="text-xs text-slate-500 uppercase block mb-1">Profit / Margin</span>
+                            <span className="text-sm font-semibold text-slate-300">
+                              ${parseFloat(formData.monthlyProfit || "0").toLocaleString()} ({formData.profitMargin || "—"}%)
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-slate-500 uppercase block mb-1">Customers / Churn</span>
+                            <span className="text-sm font-semibold text-slate-300">
+                              {formData.customerCount || "—"} / {formData.churnRate ? `${formData.churnRate}%` : "—"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-slate-500 uppercase block mb-1">Tech Stack</span>
+                            <span className="text-sm font-semibold text-slate-300 max-w-xs block truncate">{formData.techStack || "—"}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-slate-500 uppercase block mb-1">Business Age</span>
+                            <span className="text-sm font-semibold text-slate-300">{formData.businessAge ? `${formData.businessAge} months` : "—"}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-slate-500 uppercase block mb-1">Documents</span>
+                            <span className="text-sm font-semibold text-slate-300">
+                              {[formData.pnlUrl && "P&L", formData.analyticsUrl && "Analytics", formData.revenueProofUrl && "Revenue"].filter(Boolean).join(", ") || "None uploaded"}
+                            </span>
                           </div>
                         </div>
 

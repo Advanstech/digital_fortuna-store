@@ -56,7 +56,11 @@ export default function DashboardPage() {
   
   // KYC State
   const [kycStatus, setKycStatus] = useState<string>("unverified");
-  const [kycForm, setKycForm] = useState({ idType: "passport", idNumber: "", documentUrl: "" });
+  const [kycRejectionReason, setKycRejectionReason] = useState<string | null>(null);
+  const [kycForm, setKycForm] = useState({
+    fullLegalName: "", idType: "passport", idNumber: "",
+    nationality: "", dateOfBirth: "", country: "", phone: "", documentUrl: ""
+  });
   const [kycSubmitting, setKycSubmitting] = useState(false);
   const [kycStep, setKycStep] = useState(1);
 
@@ -97,16 +101,14 @@ export default function DashboardPage() {
           return;
         }
 
-        // Decode JWT to get user context
+        // Decode JWT to get initial user context (will be overridden by /auth/me)
         try {
           const payloadBase64 = token.split('.')[1];
           const payloadDecoded = JSON.parse(atob(payloadBase64));
-          const email = payloadDecoded.email || "user@example.com";
-          const isHansonSuperAdmin = email.toLowerCase() === "hanson.pepra@gmail.com";
           setUserContext({
-            email,
-            role: isHansonSuperAdmin ? "super_admin" : (payloadDecoded.role || "user"),
-            userId: payloadDecoded.sub || "user-123"
+            email: payloadDecoded.email || "",
+            role: payloadDecoded.role || "buyer",
+            userId: payloadDecoded.sub || ""
           });
         } catch (e) {
           console.error("JWT Decode error", e);
@@ -121,14 +123,22 @@ export default function DashboardPage() {
             const rawJson = await meRes.json();
             const meData = rawJson.data || rawJson;
             setKycStatus(meData.kycStatus || "unverified");
-            const resolvedRole = meData.role || (meData.email?.toLowerCase() === "hanson.pepra@gmail.com" ? "super_admin" : undefined);
-            if (resolvedRole) {
-              setUserContext(prev => ({
-                email: meData.email || prev?.email || "user@example.com",
-                role: resolvedRole,
-                userId: meData.id || prev?.userId || "user-123"
+            setKycRejectionReason(meData.kycRejectionReason || null);
+            if (meData.fullLegalName || meData.nationality) {
+              setKycForm(prev => ({
+                ...prev,
+                fullLegalName: meData.fullLegalName || prev.fullLegalName,
+                nationality: meData.nationality || prev.nationality,
+                dateOfBirth: meData.dateOfBirth || prev.dateOfBirth,
+                country: meData.country || prev.country,
+                phone: meData.phone || prev.phone,
               }));
             }
+            setUserContext({
+              email: meData.email || "",
+              role: meData.role || "buyer",
+              userId: meData.id || ""
+            });
             setProfileForm({
               displayName: meData.displayName || "",
               companyName: meData.companyName || ""
@@ -168,25 +178,8 @@ export default function DashboardPage() {
 
   const isAdmin = Boolean(
     userContext &&
-    (
-      ['admin', 'superadmin', 'super_admin', 'root'].includes(userContext.role?.toLowerCase() || '') ||
-      userContext.email?.toLowerCase() === 'hanson.pepra@gmail.com'
-    )
+    ['admin', 'super_admin'].includes(userContext.role?.toLowerCase() || '')
   );
-
-  // Quick helper to force admin role for demo purposes if needed
-  const toggleDemoAdmin = () => {
-    setUserContext(prev => {
-      if (!prev) return null;
-      const isCurrentlyAdmin = ['admin', 'superadmin', 'super_admin', 'root'].includes(prev.role.toLowerCase());
-      const nextRole = isCurrentlyAdmin ? 'buyer' : 'super_admin';
-      toast(`Switched role to ${nextRole.toUpperCase()}`, "info");
-      return {
-        ...prev,
-        role: nextRole
-      };
-    });
-  };
 
   const handleContactBroker = async () => {
     setContactingBroker(true);
@@ -215,8 +208,8 @@ export default function DashboardPage() {
   };
 
   const handleKycSubmit = async () => {
-    if (!kycForm.idNumber || !kycForm.documentUrl) {
-      toast("Please provide both ID Number and Document URL", "error");
+    if (!kycForm.fullLegalName || !kycForm.idNumber || !kycForm.documentUrl) {
+      toast("Please provide your legal name, ID number, and upload your document.", "error");
       return;
     }
     setKycSubmitting(true);
@@ -247,17 +240,34 @@ export default function DashboardPage() {
     }
   };
 
-  const handleSimulatedAiScan = (filename: string) => {
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast("File too large. Maximum size is 5MB.", "error");
+      return;
+    }
     setIsAiScanning(true);
-    // Simulate AI processing time
-    setTimeout(() => {
+    setSelectedFileName(file.name);
+    try {
+      // Convert file to base64 data URL for storage
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setKycForm(prev => ({ ...prev, documentUrl: dataUrl }));
+        setIsAiScanning(false);
+        toast(`Document "${file.name}" processed successfully.`, "success");
+      };
+      reader.onerror = () => {
+        setIsAiScanning(false);
+        toast("Failed to read file. Please try again.", "error");
+      };
+      reader.readAsDataURL(file);
+    } catch {
       setIsAiScanning(false);
-      setKycForm({
-        ...kycForm, 
-        documentUrl: `https://fortuna-secure-storage.internal/${filename.replace(/[^a-zA-Z0-9.]/g, '_')}`
-      });
-      toast("AI Verification Complete. Document is authentic.", "success");
-    }, 2500);
+      toast("Failed to process document.", "error");
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -317,9 +327,6 @@ export default function DashboardPage() {
                 </Button>
               </Link>
             )}
-            <Button variant="outline" onClick={toggleDemoAdmin} className="bg-transparent border-slate-800 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 h-9 hidden md:flex">
-              Toggle Demo Role
-            </Button>
             <Button onClick={handleLogout} className="bg-slate-800 hover:bg-slate-700 text-white h-9 px-4 text-xs font-semibold rounded-md flex items-center gap-2">
               <LogOut className="w-3.5 h-3.5" /> Logout
             </Button>
@@ -714,12 +721,24 @@ export default function DashboardPage() {
                         <ShieldCheck className="w-12 h-12 text-emerald-400 mb-4" />
                         <h4 className="text-emerald-400 font-bold text-lg mb-2">Identity Verified</h4>
                         <p className="text-emerald-500/80 text-sm">Your account is fully verified. You can now initiate and participate in acquisition transactions.</p>
+                      </div>
+                    ) : kycStatus === "rejected" ? (
+                      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 flex flex-col items-center text-center">
+                        <ShieldAlert className="w-12 h-12 text-red-400 mb-4" />
+                        <h4 className="text-red-400 font-bold text-lg mb-2">Verification Rejected</h4>
+                        <p className="text-red-500/80 text-sm mb-2">Your KYC submission was not approved.</p>
+                        {kycRejectionReason && (
+                          <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-3 mt-2 w-full max-w-md">
+                            <p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Reason</p>
+                            <p className="text-sm text-red-300">{kycRejectionReason}</p>
+                          </div>
+                        )}
                         <Button
                           variant="outline"
-                          onClick={() => { setKycStatus("unverified"); setKycStep(1); }}
-                          className="mt-4 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 text-xs"
+                          onClick={() => { setKycStep(1); setKycStatus("unverified"); }}
+                          className="mt-4 border-red-500/40 text-red-300 hover:bg-red-500/10 text-xs"
                         >
-                          Re-open Verification Wizard / Update Docs
+                          Resubmit Verification
                         </Button>
                       </div>
                     ) : kycStatus === "pending" ? (
@@ -727,13 +746,6 @@ export default function DashboardPage() {
                         <Activity className="w-12 h-12 text-blue-400 mb-4 animate-pulse" />
                         <h4 className="text-blue-400 font-bold text-lg mb-2">Verification Pending</h4>
                         <p className="text-blue-500/80 text-sm">Your documents have been submitted and are currently under review by our compliance team.</p>
-                        <Button
-                          variant="outline"
-                          onClick={() => { setKycStatus("unverified"); setKycStep(3); }}
-                          className="mt-4 border-blue-500/40 text-blue-300 hover:bg-blue-500/10 text-xs"
-                        >
-                          Modify Submitted Documents
-                        </Button>
                       </div>
                     ) : (
                       <div className="space-y-6">
@@ -785,8 +797,18 @@ export default function DashboardPage() {
                         {kycStep === 2 && (
                           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-2 md:col-span-2">
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Legal Name <span className="text-red-400">*</span></label>
+                                <input 
+                                  type="text" 
+                                  value={kycForm.fullLegalName}
+                                  onChange={(e) => setKycForm({...kycForm, fullLegalName: e.target.value})}
+                                  placeholder="As it appears on your ID document" 
+                                  className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none" 
+                                />
+                              </div>
                               <div className="space-y-2">
-                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Document Type</label>
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Document Type <span className="text-red-400">*</span></label>
                                 <select 
                                   value={kycForm.idType}
                                   onChange={(e) => setKycForm({...kycForm, idType: e.target.value})}
@@ -794,11 +816,11 @@ export default function DashboardPage() {
                                 >
                                   <option value="passport">International Passport</option>
                                   <option value="national_id">National ID Card</option>
-                                  <option value="drivers_license">Driver's License</option>
+                                  <option value="drivers_license">Driver&apos;s License</option>
                                 </select>
                               </div>
                               <div className="space-y-2">
-                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Document Number</label>
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Document Number <span className="text-red-400">*</span></label>
                                 <input 
                                   type="text" 
                                   value={kycForm.idNumber}
@@ -807,12 +829,51 @@ export default function DashboardPage() {
                                   className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none" 
                                 />
                               </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nationality</label>
+                                <input 
+                                  type="text" 
+                                  value={kycForm.nationality}
+                                  onChange={(e) => setKycForm({...kycForm, nationality: e.target.value})}
+                                  placeholder="e.g. Ghanaian" 
+                                  className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none" 
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Date of Birth</label>
+                                <input 
+                                  type="date" 
+                                  value={kycForm.dateOfBirth}
+                                  onChange={(e) => setKycForm({...kycForm, dateOfBirth: e.target.value})}
+                                  className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none" 
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Country of Residence</label>
+                                <input 
+                                  type="text" 
+                                  value={kycForm.country}
+                                  onChange={(e) => setKycForm({...kycForm, country: e.target.value})}
+                                  placeholder="e.g. Ghana" 
+                                  className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none" 
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Phone Number</label>
+                                <input 
+                                  type="tel" 
+                                  value={kycForm.phone}
+                                  onChange={(e) => setKycForm({...kycForm, phone: e.target.value})}
+                                  placeholder="e.g. +233 XX XXX XXXX" 
+                                  className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none" 
+                                />
+                              </div>
                             </div>
                             <div className="flex justify-between pt-2">
                               <Button variant="outline" onClick={() => setKycStep(1)} className="border-slate-700 bg-transparent hover:bg-slate-800 text-slate-300 hover:text-white">
                                 Back
                               </Button>
-                              <Button onClick={() => setKycStep(3)} disabled={!kycForm.idNumber} className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white">
+                              <Button onClick={() => setKycStep(3)} disabled={!kycForm.idNumber || !kycForm.fullLegalName} className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white">
                                 Continue to Upload
                               </Button>
                             </div>
@@ -842,7 +903,7 @@ export default function DashboardPage() {
                                   e.preventDefault(); 
                                   e.stopPropagation(); 
                                   setDragActive(false);
-                                  handleSimulatedAiScan(e.dataTransfer.files?.[0]?.name || "document_scan.pdf");
+                                  if (e.dataTransfer.files?.[0]) handleFileUpload(e.dataTransfer.files[0]);
                                 }}
                               >
                                 <AnimatePresence mode="wait">
@@ -852,17 +913,17 @@ export default function DashboardPage() {
                                         <Scan className="w-12 h-12 text-[#0080FF] animate-pulse" />
                                         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0080FF]/50 h-full w-full animate-bounce" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 2px, 0 2px)' }} />
                                       </div>
-                                      <p className="mt-4 text-sm text-slate-300 font-medium">AI is analyzing document integrity...</p>
+                                      <p className="mt-4 text-sm text-slate-300 font-medium">Processing document...</p>
                                     </motion.div>
                                   ) : kycForm.documentUrl ? (
                                     <motion.div key="success" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center">
                                       <FileText className="w-12 h-12 text-[#00FF85] mb-2" />
-                                      <p className="text-sm text-white font-medium">Document Scanned Successfully</p>
+                                      <p className="text-sm text-white font-medium">{selectedFileName || "Document"} uploaded</p>
                                       <Button 
                                         variant="ghost" 
                                         size="sm" 
                                         className="mt-2 text-slate-400 hover:text-white"
-                                        onClick={() => setKycForm({...kycForm, documentUrl: ""})}
+                                        onClick={() => { setKycForm({...kycForm, documentUrl: ""}); setSelectedFileName(null); }}
                                       >
                                         Remove & Upload Another
                                       </Button>
@@ -886,19 +947,12 @@ export default function DashboardPage() {
                                             accept="image/*,.pdf" 
                                             onChange={(e) => {
                                               if (e.target.files && e.target.files.length > 0) {
-                                                handleSimulatedAiScan(e.target.files[0].name);
+                                                handleFileUpload(e.target.files[0]);
                                               }
                                             }}
                                           />
                                         </label>
-                                        <Button 
-                                          variant="outline" 
-                                          className="h-auto py-2 text-xs border-[#0080FF]/30 text-[#0080FF] hover:bg-[#0080FF]/10"
-                                          onClick={(e) => { e.preventDefault(); handleSimulatedAiScan("demo_id_scan.jpg"); }}
-                                        >
-                                          <Sparkles className="w-3 h-3 mr-1" />
-                                          AI Auto-Scan Demo
-                                        </Button>
+
                                       </div>
                                     </motion.div>
                                   )}
