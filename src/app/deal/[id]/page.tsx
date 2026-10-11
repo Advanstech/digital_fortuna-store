@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Lock, FileText, CheckCircle, DollarSign, Send, Download, Cpu, Loader2, FileCode } from "lucide-react";
+import { Shield, Lock, FileText, CheckCircle, DollarSign, Send, Download, Cpu, Loader2, FileCode, Wallet } from "lucide-react";
+import Link from "next/link";
 import { useCurrency } from "@/lib/currency";
 
 export default function DealRoomPage() {
@@ -16,6 +17,7 @@ export default function DealRoomPage() {
   const [newMessage, setNewMessage] = useState("");
   const [invoices, setInvoices] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [escrowInfo, setEscrowInfo] = useState<{ balance: number; ledger: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -76,6 +78,13 @@ export default function DealRoomPage() {
             const docData = await docRes.json();
             const actualDocs = docData.data || docData;
             setDocuments(Array.isArray(actualDocs) ? actualDocs : []);
+          }
+
+          // Fetch escrow info
+          const escrowRes = await fetch(`${API_BASE}/payments/escrow/${dealId}`, { headers });
+          if (escrowRes.ok) {
+            const escrowData = await escrowRes.json();
+            setEscrowInfo(escrowData.data || escrowData);
           }
         } else {
           // If API fails, show an error state instead of fake data
@@ -326,6 +335,34 @@ export default function DealRoomPage() {
             )}
           </div>
 
+          {/* Escrow Balance */}
+          {escrowInfo && (
+            <div className="bg-[#131A2E]/80 backdrop-blur-xl border border-emerald-500/20 rounded-3xl p-6 shadow-2xl">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Escrow Balance</h3>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-[#00FF85]" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-[#00FF85] font-mono">GHS {escrowInfo.balance.toFixed(2)}</p>
+                  <p className="text-slate-500 text-[10px]">Secured via GTPay</p>
+                </div>
+              </div>
+              {escrowInfo.ledger && escrowInfo.ledger.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-800/40 space-y-1">
+                  {escrowInfo.ledger.slice(-3).map((entry: any) => (
+                    <div key={entry.id} className="flex justify-between text-[10px]">
+                      <span className="text-slate-400 capitalize">{entry.entryType?.replace(/_/g, " ")}</span>
+                      <span className={`font-mono ${entry.entryType === "deposit" ? "text-emerald-400" : "text-amber-400"}`}>
+                        {entry.entryType === "deposit" ? "+" : "-"}GHS {(entry.amount / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Escrow Milestone & Invoices */}
           <div className="bg-[#131A2E]/80 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 shadow-2xl">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Financial Milestones</h3>
@@ -343,9 +380,11 @@ export default function DealRoomPage() {
                       {inv.status.toUpperCase()}
                     </span>
                     {inv.status === 'pending' && (
-                      <Button size="sm" className="bg-[#00FF85] text-black hover:bg-[#00FF85]/90 h-7 text-[10px] font-bold rounded-lg px-3">
-                        Deposit Escrow
-                      </Button>
+                      <Link href="/escrow">
+                        <Button size="sm" className="bg-[#00FF85] text-black hover:bg-[#00FF85]/90 h-7 text-[10px] font-bold rounded-lg px-3">
+                          <Wallet className="w-3 h-3 mr-1" /> Deposit Escrow
+                        </Button>
+                      </Link>
                     )}
                   </div>
                 </div>
