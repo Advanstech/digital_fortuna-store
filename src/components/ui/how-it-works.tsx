@@ -23,7 +23,7 @@ const steps = [
 
 export function HowItWorksSection() {
   return (
-    <section className="py-24 px-4 md:px-8 bg-[#0A0F1E] relative overflow-hidden border-t border-white/5">
+    <section className="relative overflow-hidden border-t border-white/5 bg-[#0A0F1E] px-4 py-16 sm:py-20 md:px-8 md:py-24">
       {/* Decorative background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-emerald-900/10 rounded-full blur-[120px] pointer-events-none" />
 

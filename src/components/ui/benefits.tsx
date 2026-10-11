@@ -2,18 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { 
-  Calendar, 
-  Clock, 
-  ShieldCheck, 
-  CheckCircle, 
-  Cpu, 
-  Key, 
-  Database,
+import {
+  Calendar,
+  CheckCircle,
+  Cpu,
+  Key,
   GitBranch,
-  Terminal,
-  Activity,
-  ArrowUpRight
+  ArrowUpRight,
 } from "lucide-react";
 
 export function BenefitsSection() {
@@ -34,7 +29,7 @@ export function BenefitsSection() {
   ];
 
   return (
-    <section className="py-24 px-4 md:px-8 bg-[#050810] relative overflow-hidden border-t border-white/5">
+    <section className="relative overflow-hidden border-t border-white/5 bg-[#050810] px-4 py-16 sm:py-20 md:px-8 md:py-24">
       {/* Radial atmospheric design highlights */}
       <div className="absolute top-1/2 left-0 w-96 h-96 bg-[#00FF85]/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-[#0080FF]/5 rounded-full blur-[140px] pointer-events-none" />
@@ -61,20 +56,20 @@ export function BenefitsSection() {
         </div>
 
         {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-6 auto-rows-[250px] md:auto-rows-[270px]">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-6 auto-rows-auto md:auto-rows-[270px]">
           
           {/* BENTO ITEM 1: Zero Development Time (Large 4x2 Card) */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="md:col-span-4 md:row-span-2 bg-[#131A2E]/50 rounded-3xl p-8 border border-slate-800/80 relative overflow-hidden group flex flex-col justify-between backdrop-blur-sm"
+            className="min-w-0 md:col-span-4 md:row-span-2 bg-[#131A2E]/50 rounded-3xl p-5 sm:p-8 border border-slate-800/80 relative overflow-hidden group flex flex-col justify-between backdrop-blur-sm"
           >
             <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-[100px] group-hover:bg-emerald-500/10 transition-all duration-300" />
             
             {/* Visual Gantt Comparison Widget */}
             <div className="w-full bg-[#0A0F1E]/80 border border-slate-800 rounded-2xl p-5 mb-6 space-y-4 shadow-2xl relative z-10">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex flex-col items-start gap-2 border-b border-slate-800 pb-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
                   <Calendar className="w-3.5 h-3.5 text-[#00FF85]" /> Acquisition vs. Dev Lifecycle
                 </span>
@@ -83,7 +78,7 @@ export function BenefitsSection() {
 
               {/* Dev track */}
               <div className="space-y-1.5">
-                <div className="flex justify-between text-xs text-slate-500">
+                <div className="flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:justify-between">
                   <span>Build from Scratch (Recruiting + Sprint Cycles)</span>
                   <span className="font-bold text-red-400">9 - 12 Months</span>
                 </div>
@@ -94,7 +89,7 @@ export function BenefitsSection() {
 
               {/* Fortuna track */}
               <div className="space-y-1.5">
-                <div className="flex justify-between text-xs text-slate-300 font-mono">
+                <div className="flex flex-col gap-1 text-xs text-slate-300 font-mono sm:flex-row sm:justify-between">
                   <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-[#00FF85]" /> Acquire on Digital Fortuna Computing</span>
                   <span className="font-extrabold text-[#00FF85]">3 Days</span>
                 </div>

@@ -31,6 +31,10 @@ export default function AuthPage() {
   const { toast } = useToast();
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+  const getPostAuthDestination = () => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    return next?.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/catalog";
+  };
 
   // Check URL query for signup flag
   useEffect(() => {
@@ -86,7 +90,7 @@ export default function AuthPage() {
           localStorage.setItem("access_token", apiData.access_token);
           localStorage.setItem("refresh_token", apiData.refresh_token);
           toast("Successfully verified security clearance!", "success");
-          window.location.href = "/catalog";
+          window.location.href = getPostAuthDestination();
         } else {
           toast(apiData.message || resJson.message || "Invalid 2FA Authenticator code", "error");
         }
@@ -113,7 +117,7 @@ export default function AuthPage() {
         localStorage.setItem("access_token", apiData.access_token);
         localStorage.setItem("refresh_token", apiData.refresh_token);
         toast(isLogin ? "Logged in successfully!" : "Registered successfully!", "success");
-        window.location.href = "/catalog";
+        window.location.href = getPostAuthDestination();
       } else {
         toast(apiData.message || resJson.message || "Authentication failed. Check credentials.", "error");
       }

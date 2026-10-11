@@ -7,7 +7,7 @@ import { ArrowRight } from "lucide-react";
 
 export function FinalCTASection() {
   return (
-    <section className="py-32 px-4 md:px-8 bg-[#0A0F1E] relative overflow-hidden border-t border-white/5">
+    <section className="relative overflow-hidden border-t border-white/5 bg-[#0A0F1E] px-4 py-20 sm:py-24 md:px-8 md:py-32">
       {/* Background elements */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[1000px] h-[500px] bg-[#00FF85]/5 rounded-[100%] blur-[120px] pointer-events-none" />
@@ -29,14 +29,14 @@ export function FinalCTASection() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <Link href="/catalog" passHref>
-              <Button className="bg-[#00FF85] text-black hover:bg-[#00FF85]/90 px-10 py-7 text-lg rounded-full font-bold group transition-all">
+            <Link href="/catalog" className="w-full sm:w-auto">
+              <Button className="w-full rounded-full bg-[#00FF85] px-7 py-6 text-base font-bold text-black transition-all hover:bg-[#00FF85]/90 group sm:w-auto sm:px-10 sm:py-7 sm:text-lg">
                 Explore the Catalog
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
-            <Link href="/sell" passHref>
-              <Button variant="outline" className="px-10 py-7 text-lg rounded-full font-semibold border-slate-700 bg-[#1C2333]/80 backdrop-blur-sm text-white hover:bg-white hover:text-black transition-colors">
+            <Link href="/sell" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full rounded-full border-slate-700 bg-[#1C2333]/80 px-7 py-6 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white hover:text-black sm:w-auto sm:px-10 sm:py-7 sm:text-lg">
                 Sell Your Startup
               </Button>
             </Link>

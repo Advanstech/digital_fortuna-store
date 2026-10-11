@@ -15,10 +15,11 @@ interface ListingCardProps {
   type: "acquisition" | "saas";
   imageUrl?: string;
   tagline?: string;
+  verified?: boolean;
   priority?: boolean;
 }
 
-export function ListingCard({ id, title, category, price, type, imageUrl, tagline, priority = false }: ListingCardProps) {
+export function ListingCard({ id, title, category, price, type, imageUrl, tagline, verified = false, priority = false }: ListingCardProps) {
   return (
     <div style={{ perspective: 1000 }} className="group">
       <motion.div
@@ -26,22 +27,23 @@ export function ListingCard({ id, title, category, price, type, imageUrl, taglin
         transition={{ type: "spring", stiffness: 350, damping: 25 }}
       >
         <Card className="overflow-hidden bg-[#131A2E]/80 border-slate-800/80 group-hover:border-[#00FF85]/40 backdrop-blur-xl text-white transition-all duration-300 shadow-xl group-hover:shadow-2xl group-hover:shadow-[#00FF85]/10 rounded-2xl relative">
-          <div className="h-52 bg-slate-900 relative overflow-hidden">
-            {imageUrl ? (
-              <Image 
-                src={imageUrl} 
-                alt={title} 
-                fill 
+          <div className="h-52 bg-gradient-to-br from-slate-900 via-[#111a2c] to-slate-950 relative overflow-hidden">
+            {imageUrl && (
+              <Image
+                src={imageUrl}
+                alt={title}
+                fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 priority={priority}
-                className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out" 
+                unoptimized={imageUrl.startsWith("http") || imageUrl.startsWith("//")}
+                className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
               />
-            ) : null}
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A0F1E] via-[#0A0F1E]/30 to-transparent" />
             
             <div className="absolute top-4 left-4 flex gap-2">
               <span className="bg-[#0A0F1E]/80 backdrop-blur-md border border-slate-700/60 text-[#00FF85] text-[10px] font-mono px-2.5 py-1 rounded-full flex items-center gap-1 font-semibold uppercase">
-                <ShieldCheck className="w-3 h-3 text-[#00FF85]" /> Escrow Verified
+                <ShieldCheck className="w-3 h-3 text-[#00FF85]" /> {verified ? "DFC Verified" : "Live Listing"}
               </span>
             </div>
 
@@ -58,7 +60,7 @@ export function ListingCard({ id, title, category, price, type, imageUrl, taglin
               {title}
             </h3>
             <p className="text-slate-400 text-sm line-clamp-2 leading-relaxed">
-              {tagline || "Vetted, production-ready infrastructure with audited code repositories, zero technical debt, and escrow protection."}
+              {tagline || "The seller has not provided a short description."}
             </p>
           </CardContent>
 

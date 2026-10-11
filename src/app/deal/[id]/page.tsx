@@ -405,10 +405,10 @@ export default function DealRoomPage() {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-white font-display flex items-center gap-2">
-                  Secure Broker Portal
+                  Deal Room
                 </h1>
                 <p className="text-slate-500 text-xs flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> Connection Active & encrypted
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> Private workspace for deal participants
                 </p>
               </div>
             </div>

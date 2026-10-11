@@ -14,6 +14,22 @@ export interface ListingQuery {
   sellerId?: string;
 }
 
+export interface MarketplaceListing {
+  id: string;
+  slug?: string;
+  title: string;
+  category?: string;
+  tagline?: string | null;
+  description?: string | null;
+  acquisitionPrice?: number | null;
+  monthlyLicensePrice?: number | null;
+  verified?: boolean | null;
+  details?: {
+    assets?: { screenshot?: string | null; logo?: string | null };
+    images?: string[];
+  };
+}
+
 export interface PageMeta {
   page: number;
   limit: number;
@@ -29,13 +45,18 @@ export interface Paginated<T> {
 // The API wraps every response in { data, meta?, timestamp, requestId }.
 // For paginated endpoints the payload itself is { data: T[], meta: PageMeta },
 // which the interceptor flattens to top-level { data: T[], meta: PageMeta }.
-function unwrap<T>(json: any): Paginated<T> {
-  const data: T[] = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-  const meta: PageMeta = json?.meta ?? { page: 1, limit: data.length || 20, total: data.length, totalPages: 1 };
+function unwrap<T>(json: unknown): Paginated<T> {
+  const payload = json && typeof json === "object" ? json as { data?: unknown; meta?: PageMeta } : null;
+  const data: T[] = Array.isArray(payload?.data)
+    ? payload.data as T[]
+    : Array.isArray(json)
+      ? json as T[]
+      : [];
+  const meta: PageMeta = payload?.meta ?? { page: 1, limit: data.length || 20, total: data.length, totalPages: 1 };
   return { data, meta };
 }
 
-export async function getListings(query: ListingQuery = {}): Promise<Paginated<any>> {
+export async function getListings(query: ListingQuery = {}): Promise<Paginated<MarketplaceListing>> {
   const params = new URLSearchParams();
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -43,20 +64,14 @@ export async function getListings(query: ListingQuery = {}): Promise<Paginated<a
     }
   });
 
-  try {
-    const res = await fetch(`${API_BASE}/listings?${params.toString()}`);
-    if (!res.ok) {
-      console.warn(`[listings API] fetch returned ${res.status}`);
-      return { data: [], meta: { page: 1, limit: query.limit || 20, total: 0, totalPages: 1 } };
-    }
-    return unwrap(await res.json());
-  } catch (err) {
-    console.warn("[listings API] Network or fetch error:", err);
-    return { data: [], meta: { page: 1, limit: query.limit || 20, total: 0, totalPages: 1 } };
+  const res = await fetch(`${API_BASE}/listings?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Listings request failed (${res.status})`);
   }
+  return unwrap(await res.json());
 }
 
-export async function getListing(slug: string): Promise<any> {
+export async function getListing(slug: string): Promise<MarketplaceListing | null> {
   try {
     const res = await fetch(`${API_BASE}/listings/${slug}`);
     if (!res.ok) return null;

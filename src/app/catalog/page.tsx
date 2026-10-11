@@ -3,85 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ListingCard } from "@/components/listings/listing-card";
 import { Pagination } from "@/components/ui/pagination";
-import { getListings } from "@/lib/api/listings";
+import { getListings, type ListingQuery, type MarketplaceListing, type PageMeta } from "@/lib/api/listings";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, ArrowUpDown, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCurrency } from "@/lib/currency";
-
-// Premium high-fidelity curated mock listings for fallback representation
-const MOCK_LISTINGS = [
-  {
-    id: "jarvis-agent-os",
-    title: "JARVIS - 1-Person Business AI (Agent OS)",
-    category: "AI & Autonomous Agents",
-    priceUsd: 240000,
-    priceSuffix: "",
-    type: "acquisition" as const,
-    imageUrl: "/images/premium_hero_bg.png",
-    techStack: "Agent OS, FastAPI, Next.js 16, LangGraph, Claude"
-  },
-  {
-    id: "mock-1",
-    title: "ModernRx POS",
-    category: "Healthcare & Pharmacy",
-    priceUsd: 15000,
-    priceSuffix: "",
-    type: "acquisition" as const,
-    imageUrl: "/images/modernrx.png",
-    techStack: "Next.js, Fastify, PostgreSQL"
-  },
-  {
-    id: "mock-2",
-    title: "FortunaEats POS",
-    category: "Food & Restaurant",
-    priceUsd: 8500,
-    priceSuffix: "",
-    type: "acquisition" as const,
-    imageUrl: "/images/fortunaeats.png",
-    techStack: "React Native, Node.js, MongoDB"
-  },
-  {
-    id: "mock-3",
-    title: "OpenCLAW Operations",
-    category: "Office & Operations",
-    priceUsd: 99,
-    priceSuffix: "/mo",
-    type: "saas" as const,
-    imageUrl: "/images/openclaw.png",
-    techStack: "SvelteKit, NestJS, DynamoDB"
-  },
-  {
-    id: "mock-4",
-    title: "Aura AI CRM",
-    category: "Sales & Marketing",
-    priceUsd: 25000,
-    priceSuffix: "",
-    type: "acquisition" as const,
-    imageUrl: "/images/aura.png",
-    techStack: "Python, FastAPI, Supabase, Tailwind"
-  },
-  {
-    id: "mock-5",
-    title: "Nova Ledger Web3",
-    category: "Web3 & Blockchain",
-    priceUsd: 45000,
-    priceSuffix: "",
-    type: "acquisition" as const,
-    imageUrl: "/images/premium_hero_bg.png",
-    techStack: "Solidity, Next.js, Hardhat"
-  },
-  {
-    id: "mock-6",
-    title: "ChatCraft Prompt Hub",
-    category: "AI Tool / Generator",
-    priceUsd: 29,
-    priceSuffix: "/mo",
-    type: "saas" as const,
-    imageUrl: "/images/modernrx.png",
-    techStack: "OpenAI GPT-4, Next.js, Redis"
-  }
-];
 
 // Pill label -> API category enum value
 const CATEGORIES: { label: string; value?: string }[] = [
@@ -97,33 +23,48 @@ const CATEGORIES: { label: string; value?: string }[] = [
 ];
 
 const PAGE_SIZE = 6;
+type SortOption = NonNullable<ListingQuery["sort"]>;
 
-function formatListing(item: any) {
+interface CatalogListing {
+  id: string;
+  title: string;
+  category: string;
+  priceUsd: number | null;
+  priceSuffix: string;
+  type: "saas" | "acquisition";
+  imageUrl?: string;
+  tagline: string;
+  verified: boolean;
+}
+
+function formatListing(item: MarketplaceListing): CatalogListing {
   const acquisitionPrice = Number(item.acquisitionPrice || 0);
   const licensePrice = Number(item.monthlyLicensePrice || 0);
   return {
     id: item.slug || item.id,
     title: item.title,
-    category: item.category || "General",
+    category: String(item.category || "other").replace(/_/g, " ").replace(/\b\w/g, (letter: string) => letter.toUpperCase()),
     // Raw USD values — converted to the user's display currency at render time
     priceUsd: acquisitionPrice || licensePrice || null,
     priceSuffix: !acquisitionPrice && licensePrice ? "/mo" : "",
     type: (licensePrice && !acquisitionPrice ? "saas" : "acquisition") as "saas" | "acquisition",
-    imageUrl: item.demoUrl || "/images/modernrx.png",
-    tagline: item.tagline || item.description || "Production-ready sovereign asset."
+    imageUrl: item.details?.assets?.screenshot || item.details?.images?.[0] || undefined,
+    tagline: item.tagline || item.description || "",
+    verified: Boolean(item.verified)
   };
 }
 
 export default function CatalogPage() {
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, setListings] = useState<CatalogListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [sortBy, setSortBy] = useState("newest"); // newest, price-asc, price-desc, mrr-desc
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 });
-  const [isUsingFallback, setIsUsingFallback] = useState(false);
+  const [meta, setMeta] = useState<PageMeta>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 });
+  const [listingsError, setListingsError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
   const { format: formatPrice } = useCurrency();
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -142,63 +83,33 @@ export default function CatalogPage() {
   useEffect(() => {
     const fetchListings = async () => {
       setLoading(true);
+      setListingsError(null);
       try {
         const category = CATEGORIES.find((c) => c.label === activeCategory)?.value;
-        const { data, meta } = await getListings({
+        const result = await getListings({
           page,
           limit: PAGE_SIZE,
           category,
           search: debouncedSearch || undefined,
-          sort: sortBy as any,
+          sort: sortBy,
         });
 
-        setListings(data.map(formatListing));
-        setMeta(meta);
-        setIsUsingFallback(false);
+        setListings(result.data.map(formatListing));
+        setMeta(result.meta);
       } catch (error) {
-        console.error("Failed to fetch listings. Activating high-fidelity fallback nodes:", error);
-        setIsUsingFallback(true);
+        console.error("Failed to fetch live listings:", error);
+        setListings([]);
+        setListingsError("Live listings are temporarily unavailable. Please try again.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchListings();
-  }, [page, debouncedSearch, activeCategory, sortBy]);
+  }, [page, debouncedSearch, activeCategory, sortBy, reload]);
 
-  // Offline fallback: filter, sort and paginate the mock set client-side
-  const fallbackFiltered = MOCK_LISTINGS
-    .filter((listing) => {
-      const q = debouncedSearch.toLowerCase();
-      const matchesSearch =
-        listing.title.toLowerCase().includes(q) ||
-        listing.category.toLowerCase().includes(q) ||
-        (listing.techStack || "").toLowerCase().includes(q);
-      const matchesCategory =
-        activeCategory === "All" ||
-        listing.category.toLowerCase().includes(activeCategory.toLowerCase()) ||
-        (activeCategory === "POS" && listing.title.toLowerCase().includes("pos"));
-      return matchesSearch && matchesCategory;
-    })
-    .sort((a, b) => {
-      const getNum = (l: any) => Number(l.priceUsd) || 0;
-      if (sortBy === "price-asc") return getNum(a) - getNum(b);
-      if (sortBy === "price-desc") return getNum(b) - getNum(a);
-      return 0;
-    });
-
-  const displayListings = isUsingFallback
-    ? fallbackFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-    : listings;
-
-  const displayMeta = isUsingFallback
-    ? {
-        page,
-        limit: PAGE_SIZE,
-        total: fallbackFiltered.length,
-        totalPages: Math.max(1, Math.ceil(fallbackFiltered.length / PAGE_SIZE)),
-      }
-    : meta;
+  const displayListings = listings;
+  const displayMeta = meta;
 
   return (
     <main className="min-h-screen bg-[#0A0F1E] pt-32 px-4 md:px-8 pb-24 relative overflow-hidden">
@@ -219,9 +130,9 @@ export default function CatalogPage() {
             </p>
           </div>
 
-          {isUsingFallback && (
-            <div className="inline-flex items-center gap-2 bg-[#F5C842]/10 border border-[#F5C842]/20 text-[#F5C842] text-xs px-3.5 py-1.5 rounded-full font-mono">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Live Sync Offline (Showing Fallbacks)
+          {listingsError && (
+            <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs px-3.5 py-1.5 rounded-full font-mono">
+              <RefreshCw className="w-3.5 h-3.5" /> Live catalog unavailable
             </div>
           )}
         </div>
@@ -267,7 +178,7 @@ export default function CatalogPage() {
               <select
                 className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl py-4 pl-11 pr-4 text-slate-300 outline-none transition-all text-xs cursor-pointer appearance-none font-medium"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
               >
                 <option value="newest">Sort: Newest</option>
                 <option value="price-asc">Price: Low to High</option>
@@ -322,6 +233,7 @@ export default function CatalogPage() {
                       type={listing.type}
                       imageUrl={listing.imageUrl}
                       tagline={listing.tagline}
+                      verified={listing.verified}
                     />
                   </motion.div>
                 ))
@@ -331,13 +243,24 @@ export default function CatalogPage() {
                   animate={{ opacity: 1 }}
                   className="col-span-full text-center py-24 bg-[#131A2E]/30 rounded-3xl border border-slate-800"
                 >
-                  <p className="text-slate-500 text-lg font-light mb-4">No active ventures match your filtration query.</p>
-                  <Button
-                    onClick={() => { setSearchQuery(""); setActiveCategory("All"); setPage(1); }}
-                    className="bg-[#00FF85] text-black font-semibold hover:bg-[#00FF85]/80 rounded-xl"
-                  >
-                    Clear Filter Locks
-                  </Button>
+                  <p className="text-slate-500 text-lg font-light mb-4">
+                    {listingsError || "No live ventures match your search and filters."}
+                  </p>
+                  {listingsError ? (
+                    <Button
+                      onClick={() => setReload((current) => current + 1)}
+                      className="bg-[#00FF85] text-black font-semibold hover:bg-[#00FF85]/80 rounded-xl"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" /> Retry
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => { setSearchQuery(""); setActiveCategory("All"); setPage(1); }}
+                      className="bg-[#00FF85] text-black font-semibold hover:bg-[#00FF85]/80 rounded-xl"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
                 </motion.div>
               )}
             </motion.div>
