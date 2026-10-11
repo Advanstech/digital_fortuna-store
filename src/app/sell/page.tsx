@@ -420,6 +420,22 @@ export default function SellPage() {
               </div>
             </div>
 
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6 text-left">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-amber-400 text-sm font-bold">Listing Fee: GHS 49.00</span>
+              </div>
+              <p className="text-slate-400 text-xs">
+                A one-time listing fee is required to publish your listing on the marketplace.
+                You can pay via mobile money or bank transfer from your dashboard.
+              </p>
+              <Button 
+                onClick={() => window.location.href = "/dashboard#payments"}
+                className="mt-3 bg-amber-500 text-black hover:bg-amber-400 text-xs font-bold h-8 px-4 rounded-lg"
+              >
+                Pay Listing Fee
+              </Button>
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button onClick={() => window.location.href = "/catalog"} className="bg-[#00FF85] text-black hover:bg-[#00FF85]/80 px-8 py-5 rounded-xl font-semibold">
                 Browse Marketplace

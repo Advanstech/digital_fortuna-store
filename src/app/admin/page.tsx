@@ -149,6 +149,12 @@ export default function AdminConsole() {
   // Escrow state
   const [releasingEscrowId, setReleasingEscrowId] = useState<string | null>(null);
 
+  // GTPay Transactions (admin)
+  const [gtpayTransactions, setGtpayTransactions] = useState<any[]>([]);
+  const [gtpayLoading, setGtpayLoading] = useState(false);
+  const [gtpayPage, setGtpayPage] = useState(1);
+  const GTPAY_PER_PAGE = 8;
+
   const { toast } = useToast();
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
@@ -192,7 +198,27 @@ export default function AdminConsole() {
     fetchUsers(token);
     fetchListings(token);
     fetchAdminMetrics(token);
+    fetchGtpayTransactions(token);
   }, []);
+
+  const fetchGtpayTransactions = async (token?: string) => {
+    const authToken = token || localStorage.getItem("access_token");
+    if (!authToken) return;
+    setGtpayLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/payments`, {
+        headers: { "Authorization": `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        const rawJson = await res.json();
+        const data = rawJson.data || rawJson;
+        if (Array.isArray(data)) {
+          setGtpayTransactions(data);
+        }
+      }
+    } catch {}
+    setGtpayLoading(false);
+  };
 
   const fetchAdminMetrics = async (token?: string) => {
     const authToken = token || localStorage.getItem("access_token");
@@ -1118,6 +1144,88 @@ export default function AdminConsole() {
                   onPageChange={setEscrowPage}
                   className="mt-6 border-t border-slate-800/80 pt-6 px-4"
                 />
+
+                {/* GTPay Transaction Ledger */}
+                <div className="mt-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white">GTPay Transaction Ledger</h3>
+                      <p className="text-slate-400 text-xs mt-0.5">All payments processed via GTBank Partner API</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {adminMetrics?.summary && (
+                        <>
+                          <span className="bg-[#0080FF]/10 border border-[#0080FF]/20 text-[#0080FF] text-xs px-3 py-1.5 rounded-full font-mono">
+                            {adminMetrics.summary.totalGtpayPayments || 0} Transactions
+                          </span>
+                          <span className="bg-emerald-500/10 border border-emerald-500/20 text-[#00FF85] text-xs px-3 py-1.5 rounded-full font-mono">
+                            GHS {((adminMetrics.summary.gtpayVolume || 0) / 100).toLocaleString()} Volume
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-[#0A0F1E] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    {gtpayLoading ? (
+                      <div className="p-8 text-center text-slate-500 text-sm">Loading transactions...</div>
+                    ) : gtpayTransactions.length === 0 ? (
+                      <div className="p-8 text-center text-slate-500 text-sm">No GTPay transactions yet</div>
+                    ) : (
+                      <>
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-[#131A2E] text-slate-400 border-b border-slate-800 uppercase tracking-wider text-xs font-semibold">
+                            <tr>
+                              <th className="px-5 py-3">Ref / User</th>
+                              <th className="px-5 py-3">Purpose</th>
+                              <th className="px-5 py-3">Service</th>
+                              <th className="px-5 py-3">Amount</th>
+                              <th className="px-5 py-3">Status</th>
+                              <th className="px-5 py-3">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800 text-slate-300">
+                            {gtpayTransactions
+                              .slice((gtpayPage - 1) * GTPAY_PER_PAGE, gtpayPage * GTPAY_PER_PAGE)
+                              .map((tx: any) => {
+                                const p = tx.payment || tx;
+                                return (
+                                  <tr key={p.id} className="hover:bg-[#131A2E]/50 transition-colors">
+                                    <td className="px-5 py-3">
+                                      <div className="font-mono text-[11px] text-slate-300">{p.partnerTransId || '—'}</div>
+                                      <div className="text-[10px] text-slate-500">{tx.userEmail || p.paidBy}</div>
+                                    </td>
+                                    <td className="px-5 py-3 capitalize text-xs">{(p.purpose || '').replace(/_/g, ' ')}</td>
+                                    <td className="px-5 py-3 text-xs font-mono">{p.serviceName}</td>
+                                    <td className="px-5 py-3 font-mono font-bold text-[#00FF85]">GHS {(p.amount / 100).toFixed(2)}</td>
+                                    <td className="px-5 py-3">
+                                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                                        p.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                                        p.status === 'pending' ? 'bg-amber-500/10 text-amber-400' :
+                                        p.status === 'failed' ? 'bg-red-500/10 text-red-400' :
+                                        'bg-slate-500/10 text-slate-400'
+                                      }`}>{p.status}</span>
+                                    </td>
+                                    <td className="px-5 py-3 text-xs text-slate-500">{new Date(p.createdAt).toLocaleDateString()}</td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                        {gtpayTransactions.length > GTPAY_PER_PAGE && (
+                          <Pagination
+                            page={gtpayPage}
+                            totalPages={Math.ceil(gtpayTransactions.length / GTPAY_PER_PAGE)}
+                            total={gtpayTransactions.length}
+                            limit={GTPAY_PER_PAGE}
+                            onPageChange={setGtpayPage}
+                            className="border-t border-slate-800/80 pt-4 pb-3 px-4"
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               </motion.div>
             )}
 

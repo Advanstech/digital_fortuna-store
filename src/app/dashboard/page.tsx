@@ -34,7 +34,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 import { useCurrency } from "@/lib/currency";
 
-type TabType = "overview" | "adgenie" | "profile" | "settings" | "admin";
+type TabType = "overview" | "payments" | "adgenie" | "profile" | "settings" | "admin";
 
 const performanceData = [
   { name: 'Jan', value: 12000, views: 400 },
@@ -71,6 +71,13 @@ export default function DashboardPage() {
   const [profileForm, setProfileForm] = useState({ displayName: "", companyName: "" });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   
+  // Payment State
+  const [payments, setPayments] = useState<any[]>([]);
+  const [fees, setFees] = useState<any[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentsPage, setPaymentsPage] = useState(1);
+  const PAYMENTS_PER_PAGE = 8;
+
   // Drag & Drop State
   const [dragActive, setDragActive] = useState(false);
   const [isAiScanning, setIsAiScanning] = useState(false);
@@ -83,7 +90,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.hash) {
       const hash = window.location.hash.replace('#', '') as TabType;
-      if (['overview', 'adgenie', 'profile', 'settings', 'admin'].includes(hash)) {
+      if (['overview', 'payments', 'adgenie', 'profile', 'settings', 'admin'].includes(hash)) {
         setActiveTab(hash);
       }
     }
@@ -172,6 +179,27 @@ export default function DashboardPage() {
 
     initDashboard();
   }, []);
+
+  const loadPayments = async () => {
+    setPaymentsLoading(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) return;
+      const [pmtRes, feeRes] = await Promise.all([
+        fetch(`${API_BASE}/payments/my-payments`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/payments/my-fees`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (pmtRes.ok) {
+        const d = await pmtRes.json();
+        setPayments(Array.isArray(d) ? d : d?.data || []);
+      }
+      if (feeRes.ok) {
+        const d = await feeRes.json();
+        setFees(Array.isArray(d) ? d : d?.data || []);
+      }
+    } catch {}
+    setPaymentsLoading(false);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -352,6 +380,15 @@ export default function DashboardPage() {
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4" /> Overview & Deals
+              </button>
+
+              <button 
+                onClick={() => { setActiveTab("payments"); loadPayments(); }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                  activeTab === "payments" ? "bg-[#00FF85]/10 text-[#00FF85]" : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                }`}
+              >
+                <CreditCard className="w-4 h-4" /> Payments & Fees
               </button>
 
               <button 
@@ -549,6 +586,136 @@ export default function DashboardPage() {
                     )}
                   </div>
 
+                </motion.div>
+              )}
+
+              {/* TAB: PAYMENTS & FEES */}
+              {activeTab === "payments" && (
+                <motion.div 
+                  key="payments"
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                  className="space-y-6"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-3xl font-bold text-white font-display">Payments & Fees</h2>
+                      <p className="text-slate-400 text-sm mt-1">GTPay transactions and marketplace fees</p>
+                    </div>
+                    <Link href="/escrow">
+                      <Button className="bg-[#00FF85] text-black hover:bg-[#00FF85]/90 font-bold text-xs h-9 rounded-xl px-4">
+                        <CreditCard className="w-4 h-4 mr-1.5" /> Go to Escrow
+                      </Button>
+                    </Link>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-[#131A2E]/80 border border-slate-800/80 rounded-2xl p-5">
+                      <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Payments</p>
+                      <p className="text-2xl font-bold text-white font-mono">{payments.length}</p>
+                    </div>
+                    <div className="bg-[#131A2E]/80 border border-slate-800/80 rounded-2xl p-5">
+                      <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Completed</p>
+                      <p className="text-2xl font-bold text-[#00FF85] font-mono">
+                        GHS {(payments.filter(p => p.status === 'completed').reduce((sum: number, p: any) => sum + (p.amount || 0), 0) / 100).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="bg-[#131A2E]/80 border border-slate-800/80 rounded-2xl p-5">
+                      <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Fees Paid</p>
+                      <p className="text-2xl font-bold text-amber-400 font-mono">
+                        GHS {(fees.filter(f => f.status === 'paid').reduce((sum: number, f: any) => sum + (f.amount || 0), 0) / 100).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Payment Transactions */}
+                  <div className="bg-[#131A2E]/80 border border-slate-800/80 rounded-2xl overflow-hidden">
+                    <div className="p-5 border-b border-slate-800/80">
+                      <h3 className="text-sm font-bold text-white">Transaction History</h3>
+                    </div>
+                    {paymentsLoading ? (
+                      <div className="p-8 text-center text-slate-500 text-sm">Loading transactions...</div>
+                    ) : payments.length === 0 ? (
+                      <div className="p-8 text-center text-slate-500 text-sm">
+                        <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        No payments yet. Deposit to escrow or pay listing fees to get started.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="divide-y divide-slate-800/40">
+                          {payments
+                            .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                            .slice((paymentsPage - 1) * PAYMENTS_PER_PAGE, paymentsPage * PAYMENTS_PER_PAGE)
+                            .map((p: any) => (
+                            <div key={p.id} className="px-5 py-4 flex items-center justify-between hover:bg-slate-800/20 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold ${
+                                  p.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                                  p.status === 'pending' ? 'bg-amber-500/10 text-amber-400' :
+                                  p.status === 'failed' ? 'bg-red-500/10 text-red-400' :
+                                  'bg-slate-500/10 text-slate-400'
+                                }`}>
+                                  {p.status === 'completed' ? <CheckCircle className="w-4 h-4" /> :
+                                   p.status === 'pending' ? <Activity className="w-4 h-4" /> :
+                                   <CreditCard className="w-4 h-4" />}
+                                </div>
+                                <div>
+                                  <p className="text-white text-sm font-semibold capitalize">{(p.purpose || 'payment').replace(/_/g, ' ')}</p>
+                                  <p className="text-slate-500 text-[10px]">{p.serviceName} &middot; {new Date(p.createdAt).toLocaleDateString()}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-white font-mono text-sm font-bold">GHS {(p.amount / 100).toFixed(2)}</p>
+                                <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                  p.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                                  p.status === 'pending' ? 'bg-amber-500/10 text-amber-400' :
+                                  'bg-red-500/10 text-red-400'
+                                }`}>{p.status}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {payments.length > PAYMENTS_PER_PAGE && (
+                          <div className="p-4 border-t border-slate-800/80">
+                            <Pagination
+                              page={paymentsPage}
+                              totalPages={Math.ceil(payments.length / PAYMENTS_PER_PAGE)}
+                              total={payments.length}
+                              limit={PAYMENTS_PER_PAGE}
+                              onPageChange={setPaymentsPage}
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Marketplace Fees */}
+                  {fees.length > 0 && (
+                    <div className="bg-[#131A2E]/80 border border-slate-800/80 rounded-2xl overflow-hidden">
+                      <div className="p-5 border-b border-slate-800/80">
+                        <h3 className="text-sm font-bold text-white">Marketplace Fees</h3>
+                      </div>
+                      <div className="divide-y divide-slate-800/40">
+                        {fees.map((f: any) => (
+                          <div key={f.id} className="px-5 py-4 flex items-center justify-between">
+                            <div>
+                              <p className="text-white text-sm font-semibold capitalize">{(f.feeType || '').replace(/_/g, ' ')}</p>
+                              <p className="text-slate-500 text-[10px]">{new Date(f.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-white font-mono text-sm">GHS {(f.amount / 100).toFixed(2)}</p>
+                              <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                f.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400' :
+                                f.status === 'waived' ? 'bg-blue-500/10 text-blue-400' :
+                                'bg-amber-500/10 text-amber-400'
+                              }`}>{f.status}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
 
