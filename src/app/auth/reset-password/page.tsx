@@ -20,6 +20,8 @@ function ResetPasswordForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -35,7 +37,7 @@ function ResetPasswordForm() {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`http://localhost:4000/v1/auth/reset-password`, {
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),

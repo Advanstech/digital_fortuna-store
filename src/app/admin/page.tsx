@@ -178,6 +178,8 @@ export default function AdminConsole() {
 
   const { toast } = useToast();
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+
   useEffect(() => {
     const saved = localStorage.getItem("admin_sidebar_collapsed");
     if (saved === "true") {
@@ -224,7 +226,7 @@ export default function AdminConsole() {
     if (!authToken) return;
     setLoadingUsers(true);
     try {
-      const res = await fetch("http://localhost:4000/v1/auth/admin/users", {
+      const res = await fetch(`${API_BASE}/auth/admin/users`, {
         headers: { "Authorization": `Bearer ${authToken}` }
       });
       if (res.ok) {
@@ -245,7 +247,7 @@ export default function AdminConsole() {
     const authToken = token || localStorage.getItem("access_token");
     setLoadingListings(true);
     try {
-      const res = await fetch("http://localhost:4000/v1/listings?limit=50", {
+      const res = await fetch(`${API_BASE}/listings?limit=50`, {
         headers: authToken ? { "Authorization": `Bearer ${authToken}` } : undefined
       });
       if (res.ok) {
@@ -264,7 +266,7 @@ export default function AdminConsole() {
     setIsSavingListing(true);
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch(`http://localhost:4000/v1/listings/${listingId}`, {
+      const res = await fetch(`${API_BASE}/listings/${listingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -290,7 +292,7 @@ export default function AdminConsole() {
   const handleQuickStatusChange = async (listingId: string, newStatus: string) => {
     try {
       const token = localStorage.getItem("access_token");
-      await fetch(`http://localhost:4000/v1/listings/${listingId}`, {
+      await fetch(`${API_BASE}/listings/${listingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -310,7 +312,7 @@ export default function AdminConsole() {
     if (!confirm("Are you sure you want to remove/archive this asset from the registry?")) return;
     try {
       const token = localStorage.getItem("access_token");
-      await fetch(`http://localhost:4000/v1/listings/${listingId}`, {
+      await fetch(`${API_BASE}/listings/${listingId}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -335,7 +337,7 @@ export default function AdminConsole() {
     setProcessingKycId(userId);
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch(`http://localhost:4000/v1/auth/admin/users/${userId}/kyc`, {
+      const res = await fetch(`${API_BASE}/auth/admin/users/${userId}/kyc`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

@@ -70,6 +70,8 @@ export default function DashboardPage() {
 
   const { toast } = useToast();
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+
   // Sync activeTab with URL hash so it persists across reloads
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.hash) {
@@ -112,7 +114,7 @@ export default function DashboardPage() {
 
         // Fetch User Profile for KYC & Live DB Role
         try {
-          const meRes = await fetch("http://localhost:4000/v1/auth/me", {
+          const meRes = await fetch(`${API_BASE}/auth/me`, {
             headers: { "Authorization": `Bearer ${token}` }
           });
           if (meRes.ok) {
@@ -136,7 +138,7 @@ export default function DashboardPage() {
           console.error("Failed to fetch profile", e);
         }
 
-        const res = await fetch("http://localhost:4000/v1/deals/my-deals", {
+        const res = await fetch(`${API_BASE}/deals/my-deals`, {
           headers: {
             "Authorization": `Bearer ${token}`
           }
@@ -190,7 +192,7 @@ export default function DashboardPage() {
     setContactingBroker(true);
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch("http://localhost:4000/v1/brokers/contact", {
+      const res = await fetch(`${API_BASE}/brokers/contact`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -220,7 +222,7 @@ export default function DashboardPage() {
     setKycSubmitting(true);
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch("http://localhost:4000/v1/auth/kyc/submit", {
+      const res = await fetch(`${API_BASE}/auth/kyc/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -262,7 +264,7 @@ export default function DashboardPage() {
     setIsSavingProfile(true);
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch("http://localhost:4000/v1/auth/profile", {
+      const res = await fetch(`${API_BASE}/auth/profile`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

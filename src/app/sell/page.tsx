@@ -62,36 +62,67 @@ export default function SellPage() {
   // Form states
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
-  // Calculate dynamic AI Valuation estimation based on SaaS standard multiples (usually 4x - 8x ARR or 40x - 80x MRR)
-  const [aiEstimate, setAiEstimate] = useState({ min: 0, max: 0, multiplier: 5.5, status: "competitive" });
+  // Real valuation using the backend valuation engine
+  const [aiEstimate, setAiEstimate] = useState<any>({ min: 0, max: 0, multiplier: 5.5, status: "competitive", report: null });
+  const [isValuating, setIsValuating] = useState(false);
 
+  // Auto-compute quick valuation when financials change (debounced)
   useEffect(() => {
     const monthlyRev = parseFloat(formData.mrr) || 0;
     const yearlyRev = parseFloat(formData.arr) || (monthlyRev * 12) || 0;
     const askingPrice = parseFloat(formData.acquisitionPrice) || 0;
 
-    if (yearlyRev > 0) {
-      // Calculate dynamic multiple based on asking price / yearly revenue
-      const currentMultiple = askingPrice / yearlyRev;
-      let status = "competitive";
-      if (currentMultiple > 8) status = "premium";
-      else if (currentMultiple < 3) status = "highly-undervalued";
-
-      // Suggested valuation based on standard 4.5x - 7.5x multiples
-      const minEst = Math.round(yearlyRev * 4.2);
-      const maxEst = Math.round(yearlyRev * 7.8);
-      const avgMultiplier = (askingPrice && yearlyRev) ? (askingPrice / yearlyRev).toFixed(1) : "6.0";
-
-      setAiEstimate({
-        min: minEst,
-        max: maxEst,
-        multiplier: parseFloat(avgMultiplier) || 6.0,
-        status: status
-      });
-    } else {
-      setAiEstimate({ min: 0, max: 0, multiplier: 6.0, status: "pending" });
+    if (yearlyRev <= 0) {
+      setAiEstimate({ min: 0, max: 0, multiplier: 6.0, status: "pending", report: null });
+      return;
     }
-  }, [formData.mrr, formData.arr, formData.acquisitionPrice]);
+
+    const timer = setTimeout(async () => {
+      setIsValuating(true);
+      try {
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+        const res = await fetch(`${API_BASE}/valuation/quick`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            revenueMrr: monthlyRev,
+            revenueArr: yearlyRev,
+            category: formData.category || "saas",
+          }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const report = json.data || json;
+          const currentMultiple = askingPrice && yearlyRev ? askingPrice / yearlyRev : 0;
+          let status = "competitive";
+          if (currentMultiple > 8) status = "premium";
+          else if (currentMultiple < 3 && currentMultiple > 0) status = "undervalued";
+
+          setAiEstimate({
+            min: report.estimatedValuationMin || 0,
+            max: report.estimatedValuationMax || 0,
+            multiplier: currentMultiple || 6.0,
+            status,
+            report,
+          });
+        }
+      } catch {
+        // Fallback to simple calculation if API is unavailable
+        const currentMultiple = askingPrice && yearlyRev ? askingPrice / yearlyRev : 6.0;
+        setAiEstimate({
+          min: Math.round(yearlyRev * 4.2),
+          max: Math.round(yearlyRev * 7.8),
+          multiplier: currentMultiple,
+          status: currentMultiple > 8 ? "premium" : currentMultiple < 3 ? "undervalued" : "competitive",
+          report: null,
+        });
+      } finally {
+        setIsValuating(false);
+      }
+    }, 800); // debounce
+
+    return () => clearTimeout(timer);
+  }, [formData.mrr, formData.arr, formData.acquisitionPrice, formData.category]);
 
   useEffect(() => {
     // Check if token exists to prompt login
@@ -112,7 +143,8 @@ export default function SellPage() {
 
     setIsAutofilling(true);
     try {
-      const res = await fetch("http://localhost:4000/v1/ai/autofill-listing", {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+      const res = await fetch(`${API_BASE}/ai/autofill-listing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ urlOrText: query }),
@@ -147,45 +179,25 @@ export default function SellPage() {
         throw new Error("Backend response error");
       }
     } catch {
-      // High-precision positioning fallback for JARVIS on Agent OS or other ventures
-      const isJarvisOrAgentOS = /jarvis|leotrieu|agent[\s_-]?os|1-person/i.test(query);
-      if (isJarvisOrAgentOS) {
-        setFormData({
-          title: "JARVIS - 1-Person Business AI Assistant (Agent OS)",
-          category: "ai",
-          acquisitionPrice: "240000",
-          mrr: "18500",
-          arr: "222000",
-          profitMargin: "91",
-          techStack: "Agent OS Architecture, Python / FastAPI, Next.js 16, LangGraph, Claude 3.5 Sonnet & Gemini 2.5, Tailscale Mesh, SQLite / ChromaDB",
-          description: "JARVIS is the pioneering 1-Person Business AI Assistant running on Agent OS—the first of its kind in Ghana and across Africa. Designed specifically for solopreneurs, creators, and single-operator businesses, JARVIS operates as an always-on autonomous executive layer. Equipped with persistent long-term memory, custom plain-English skill generation, and 24/7 background operation (overnight inbox triage, client follow-ups, and morning strategic briefings). It turns a 1-person company into an enterprise-grade operation.",
-          whySelling: "Expanding deployment scale and seeking capital/partner buyout to institutionalize and scale the Agent OS infrastructure across the broader African SME and venture ecosystem.",
-          contactEmail: "founder@jarvis-os.ai",
-          benefits: "First-Mover Advantage in African AI Infrastructure, High Sticky ARR, Proprietary Agent OS Architecture with Persistent Memory, Turnkey Multi-Agent Automation",
-          relevance: "African solopreneurs and SMEs face severe bandwidth constraints and high operational overhead. JARVIS eliminates manual administrative toil with a self-evolving Agent OS running 24/7.",
-          growth: "1. Expand localized payment & WhatsApp/MoMo integrations for West & Pan-African solopreneurs.\n2. Launch enterprise B2B Agent OS workspaces.\n3. Integrate with Fortuna ecosystem deal flow and automated client servicing.",
-          activeUsers: "3850",
-          logoUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",
-          screenshotUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
-          pitchDeckUrl: "https://jarvis-os.ai/docs/pitch-deck.pdf",
-        });
-        toast("✨ Positioned JARVIS: 1-Person Business AI Assistant on Agent OS", "success");
-      } else {
-        toast("Could not analyze URL. Please verify and try again.", "error");
-      }
+      toast("Could not analyze the input. Please check the URL or description and try again.", "error");
     } finally {
       setIsAutofilling(false);
     }
   };
 
   const handleAiSuggestPrice = () => {
-    const monthlyRev = parseFloat(formData.mrr) || 0;
-    const yearlyRev = parseFloat(formData.arr) || (monthlyRev * 12) || 0;
-    if (yearlyRev > 0) {
-      setFormData({ ...formData, acquisitionPrice: Math.round(yearlyRev * 5.5).toString() });
-      toast("AI Suggested a 5.5x ARR multiple for Asking Price", "success");
+    if (aiEstimate.report?.recommendedListPrice) {
+      setFormData({ ...formData, acquisitionPrice: aiEstimate.report.recommendedListPrice.toString() });
+      toast(`AI recommended ${aiEstimate.report.primaryMethod}-based price using ${formData.category} multiples`, "success");
     } else {
-      toast("Please enter MRR or ARR first to calculate Price", "error");
+      const monthlyRev = parseFloat(formData.mrr) || 0;
+      const yearlyRev = parseFloat(formData.arr) || (monthlyRev * 12) || 0;
+      if (yearlyRev > 0) {
+        setFormData({ ...formData, acquisitionPrice: Math.round(yearlyRev * 5.5).toString() });
+        toast("Suggested a 5.5x ARR multiple for Asking Price", "success");
+      } else {
+        toast("Please enter MRR or ARR first to calculate Price", "error");
+      }
     }
   };
 
@@ -267,7 +279,8 @@ export default function SellPage() {
         },
       };
 
-      const res = await fetch("http://localhost:4000/v1/listings", {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+      const res = await fetch(`${API_BASE}/listings`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

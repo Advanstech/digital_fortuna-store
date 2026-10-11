@@ -30,6 +30,8 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+
   // Check URL query for signup flag
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -46,7 +48,7 @@ export default function AuthPage() {
 
     if (isResetPassword) {
       try {
-        const res = await fetch(`http://localhost:4000/v1/auth/forgot-password`, {
+        const res = await fetch(`${API_BASE}/auth/forgot-password`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email.trim() }),
@@ -72,7 +74,7 @@ export default function AuthPage() {
     try {
       if (needs2FA) {
         // Handle 2FA Verification
-        const res = await fetch("http://localhost:4000/v1/auth/2fa/verify-login", {
+        const res = await fetch(`${API_BASE}/auth/2fa/verify-login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId, authCode }),
@@ -93,7 +95,7 @@ export default function AuthPage() {
 
       // Handle normal Login or Register
       const endpoint = isLogin ? "login" : "register";
-      const res = await fetch(`http://localhost:4000/v1/auth/${endpoint}`, {
+      const res = await fetch(`${API_BASE}/auth/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password }),

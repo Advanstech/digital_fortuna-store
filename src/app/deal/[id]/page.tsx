@@ -4,73 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Shield, 
-  Lock, 
-  FileText, 
-  CheckCircle, 
-  DollarSign, 
-  TrendingUp, 
-  Send, 
-  Download, 
-  Cpu, 
-  AlertCircle,
-  Clock,
-  Loader2,
-  FileCode
-} from "lucide-react";
+import { Shield, Lock, FileText, CheckCircle, DollarSign, Send, Download, Cpu, Loader2, FileCode } from "lucide-react";
 import { useCurrency } from "@/lib/currency";
-
-const MOCK_DEAL_DATA: Record<string, any> = {
-  "mock-1": { 
-    title: "TikTok AI Advertising Ecosystem", 
-    status: "negotiation", 
-    price: "$4,500,000",
-    ebitda: "x6.2",
-    margin: "82%",
-    risk: "Low"
-  },
-  "mock-2": { 
-    title: "Global Supply Chain ERP", 
-    status: "due_diligence", 
-    price: "$1,850,000",
-    ebitda: "x5.4",
-    margin: "74%",
-    risk: "Minimal"
-  },
-  "mock-3": { 
-    title: "Enterprise Fintech Gateway", 
-    status: "escrow_funded", 
-    price: "$2,200,000",
-    ebitda: "x7.1",
-    margin: "89%",
-    risk: "Low"
-  },
-  "mock-4": { 
-    title: "Healthcare EHR Core System", 
-    status: "negotiation", 
-    price: "$5,000,000",
-    ebitda: "x5.8",
-    margin: "68%",
-    risk: "Moderate"
-  },
-  "mock-5": { 
-    title: "Real Estate Tokenization Protocol", 
-    status: "closing", 
-    price: "$1,150,000",
-    ebitda: "x4.9",
-    margin: "91%",
-    risk: "Low"
-  },
-  "mock-6": { 
-    title: "Generative AI CRM Framework", 
-    status: "negotiation", 
-    price: "$950,000",
-    ebitda: "x4.2",
-    margin: "78%",
-    risk: "Minimal"
-  },
-};
 
 export default function DealRoomPage() {
   const params = useParams();
@@ -80,11 +15,12 @@ export default function DealRoomPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // AI Document generation simulation states
+  // Document generation states
   const [generatingDoc, setGeneratingDoc] = useState<string | null>(null);
-  const [generatedDocs, setGeneratedDocs] = useState<string[]>([]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { format: formatPrice } = useCurrency();
@@ -97,60 +33,57 @@ export default function DealRoomPage() {
   }, [messages, generatingDoc]);
 
   useEffect(() => {
+    // Decode userId from token
+    try {
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        setUserId(payload.sub || null);
+      }
+    } catch {}
+
     const fetchDealData = async () => {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
       try {
         const token = localStorage.getItem("access_token");
-        const dealRes = await fetch(`http://localhost:4000/v1/deals/${dealId}`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+        const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
+
+        const dealRes = await fetch(`${API_BASE}/deals/${dealId}`, { headers });
         
         if (dealRes.ok) {
           const dealData = await dealRes.json();
           setDeal(dealData.data || dealData);
 
-          const msgRes = await fetch(`http://localhost:4000/v1/deals/${dealId}/messages`, {
-            headers: { "Authorization": `Bearer ${token}` }
-          });
+          // Fetch messages
+          const msgRes = await fetch(`${API_BASE}/deals/${dealId}/messages`, { headers });
           if (msgRes.ok) {
             const msgData = await msgRes.json();
             const actualMessages = msgData.data || msgData;
             setMessages(Array.isArray(actualMessages) ? actualMessages : []);
           }
 
-          const invRes = await fetch(`http://localhost:4000/v1/invoices/deal/${dealId}`, {
-            headers: { "Authorization": `Bearer ${token}` }
-          });
+          // Fetch invoices
+          const invRes = await fetch(`${API_BASE}/invoices/deal/${dealId}`, { headers });
           if (invRes.ok) {
             const invData = await invRes.json();
             const actualInvoices = invData.data || invData;
             setInvoices(Array.isArray(actualInvoices) ? actualInvoices : []);
           }
+
+          // Fetch deal documents
+          const docRes = await fetch(`${API_BASE}/deals/${dealId}/documents`, { headers });
+          if (docRes.ok) {
+            const docData = await docRes.json();
+            const actualDocs = docData.data || docData;
+            setDocuments(Array.isArray(actualDocs) ? actualDocs : []);
+          }
         } else {
-          throw new Error("Failed to fetch deal from API");
+          // If API fails, show an error state instead of fake data
+          setDeal(null);
         }
       } catch (error) {
-        console.warn("API offline or deal not found. Using high-fidelity mock data.", error);
-        
-        const mockDealInfo = MOCK_DEAL_DATA[dealId] || { 
-          title: "Enterprise Software Asset", 
-          status: "negotiation", 
-          price: "TBD",
-          ebitda: "N/A",
-          margin: "N/A",
-          risk: "N/A"
-        };
-        setDeal(mockDealInfo);
-        
-        setMessages([
-          { senderId: "system", timestamp: "09:00 PM", content: "🔐 Secure Room initialized. All transmissions use TLS 1.3 encryption protocols." },
-          { senderId: "broker", timestamp: "09:02 PM", content: `Greetings. I am your M&A Broker Advisor assigned to the ${mockDealInfo.title} transaction dossier.` },
-          { senderId: "broker", timestamp: "09:03 PM", content: "We've pre-audited the code repositories and checked the financials. Let's begin the negotiation. You can draft an LOI using our AI Legal generator." }
-        ]);
-        
-        setInvoices([
-          { id: "inv-1", description: "M&A Due Diligence Retainer Fee", amount: 5000, status: "paid" },
-          { id: "inv-2", description: "Escrow Purchase Downpayment (10%)", amount: parseFloat(mockDealInfo.price.replace(/[^0-9.]/g, "")) * 0.1 || 150000, status: "pending" }
-        ]);
+        console.warn("Failed to load deal:", error);
+        setDeal(null);
       } finally {
         setLoading(false);
       }
@@ -163,33 +96,53 @@ export default function DealRoomPage() {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    const userMsg = { senderId: "me", timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), content: newMessage };
-    setMessages(prev => [...prev, userMsg]);
+    const messageText = newMessage.trim();
     setNewMessage("");
 
-    // Simulate smart agent responses for immersive mock UX
-    setTimeout(() => {
-      setMessages(prev => [...prev, {
-        senderId: "broker",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        content: `Understood. Analyzing parameters of: "${newMessage}". We will coordinate with the engineering partners to prepare verification logs.`
-      }]);
-    }, 1500);
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API_BASE}/deals/${dealId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ content: messageText }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const msg = data.data || data;
+        setMessages(prev => [...prev, msg]);
+      }
+    } catch (error) {
+      console.warn("Failed to send message:", error);
+    }
   };
 
-  const triggerAIDocument = (type: "loi" | "apa" | "dd") => {
+  const triggerAIDocument = async (type: string) => {
     setGeneratingDoc(type);
-    
-    // Simulate generation loop
-    setTimeout(() => {
-      setGeneratedDocs(prev => [...prev, type]);
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API_BASE}/deals/${dealId}/generate-document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ documentType: type }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const doc = data.data || data;
+        setDocuments(prev => [...prev, doc]);
+        // Add system message about generated doc
+        setMessages(prev => [...prev, {
+          senderId: "system",
+          createdAt: new Date().toISOString(),
+          content: `Document generated: ${doc.title || type.toUpperCase()}. Available in the Document Vault below.`
+        }]);
+      }
+    } catch (error) {
+      console.warn("Document generation failed:", error);
+    } finally {
       setGeneratingDoc(null);
-      setMessages(prev => [...prev, {
-        senderId: "system",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        content: `📄 AI Agent successfully generated and verified the cryptographically signed document: ${type.toUpperCase()}_v1.pdf. Available in Data Room Vault.`
-      }]);
-    }, 4000);
+    }
   };
 
   if (loading) {
@@ -201,7 +154,7 @@ export default function DealRoomPage() {
     );
   }
 
-  if (!deal) return <div className="min-h-screen bg-[#0A0F1E] pt-32 text-center text-white">Asset acquisition file not found.</div>;
+  if (!deal) return <div className="min-h-screen bg-[#0A0F1E] pt-32 text-center text-white">Deal not found. Please check the deal ID or ensure you are a participant.</div>;
 
   return (
     <main className="min-h-screen w-full bg-[#0A0F1E] pt-32 pb-24 px-4 md:px-8 relative">
@@ -231,27 +184,27 @@ export default function DealRoomPage() {
               </div>
 
               <h2 className="text-2xl font-extrabold text-white font-display tracking-tight group-hover:text-[#00FF85] transition-colors">
-                {deal.title}
+                {deal.listing?.title || deal.listingTitle || deal.title || "Deal Room"}
               </h2>
 
               <div className="border-t border-slate-800/80 pt-4 space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Acquisition Price:</span>
+                  <span className="text-slate-500">Agreed Price:</span>
                   <span className="text-white font-bold text-base font-mono">
-                    {deal.agreedPrice != null ? formatPrice(deal.agreedPrice) : deal.price}
+                    {deal.agreedPrice != null ? formatPrice(deal.agreedPrice) : "TBD"}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">EBITDA Multiple:</span>
-                  <span className="text-white font-semibold font-mono">{deal.ebitda}</span>
+                  <span className="text-slate-500">Deal Status:</span>
+                  <span className="text-[#00FF85] font-semibold font-mono uppercase">{(deal.status || "").replace(/_/g, " ")}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Net Profit Margin:</span>
-                  <span className="text-[#00FF85] font-semibold font-mono">{deal.margin}</span>
+                  <span className="text-slate-500">Buyer:</span>
+                  <span className="text-white font-semibold text-xs">{deal.buyer?.email || "—"}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Risk Assessment:</span>
-                  <span className="text-white font-semibold">{deal.risk}</span>
+                  <span className="text-slate-500">Seller:</span>
+                  <span className="text-white font-semibold text-xs">{deal.seller?.email || "—"}</span>
                 </div>
               </div>
             </div>
@@ -263,60 +216,110 @@ export default function DealRoomPage() {
               <Cpu className="w-4 h-4 text-[#0080FF] animate-pulse" /> AI Legal Document Suite
             </h3>
 
-            <div className="space-y-3">
-              {/* LOI Button */}
-              <Button 
-                onClick={() => triggerAIDocument("loi")} 
-                disabled={generatingDoc !== null}
-                className="w-full bg-[#0A0F1E] border border-slate-800 hover:border-[#00FF85] text-slate-300 hover:text-white rounded-xl py-6 flex items-center justify-between group transition-all"
-              >
-                <div className="flex items-center gap-2">
-                  {generatingDoc === "loi" ? (
-                    <Loader2 className="w-4 h-4 text-[#00FF85] animate-spin" />
-                  ) : (
-                    <FileText className="w-4 h-4 text-slate-500 group-hover:text-[#00FF85] transition-colors" />
-                  )}
-                  <span className="text-xs">Letter of Intent (LOI)</span>
-                </div>
-                {generatedDocs.includes("loi") ? (
-                  <CheckCircle className="w-4 h-4 text-[#00FF85]" />
-                ) : (
-                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Generate</span>
-                )}
-              </Button>
-
-              {/* APA Button */}
-              <Button 
-                onClick={() => triggerAIDocument("apa")} 
-                disabled={generatingDoc !== null}
-                className="w-full bg-[#0A0F1E] border border-slate-800 hover:border-[#00FF85] text-slate-300 hover:text-white rounded-xl py-6 flex items-center justify-between group transition-all"
-              >
-                <div className="flex items-center gap-2">
-                  {generatingDoc === "apa" ? (
-                    <Loader2 className="w-4 h-4 text-[#00FF85] animate-spin" />
-                  ) : (
-                    <FileCode className="w-4 h-4 text-slate-500 group-hover:text-[#00FF85] transition-colors" />
-                  )}
-                  <span className="text-xs">Asset Purchase Agreement (APA)</span>
-                </div>
-                {generatedDocs.includes("apa") ? (
-                  <CheckCircle className="w-4 h-4 text-[#00FF85]" />
-                ) : (
-                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Generate</span>
-                )}
-              </Button>
+            <div className="space-y-2">
+              {[
+                { type: "nda", label: "Non-Disclosure Agreement (NDA)", icon: Lock },
+                { type: "loi", label: "Letter of Intent (LOI)", icon: FileText },
+                { type: "apa", label: "Asset Purchase Agreement", icon: FileCode },
+                { type: "dd_checklist", label: "Due Diligence Checklist", icon: CheckCircle },
+                { type: "escrow_agreement", label: "Escrow Agreement", icon: DollarSign },
+              ].map(({ type, label, icon: Icon }) => {
+                const exists = documents.some(d => d.documentType === type);
+                return (
+                  <Button 
+                    key={type}
+                    onClick={() => triggerAIDocument(type)} 
+                    disabled={generatingDoc !== null}
+                    className="w-full bg-[#0A0F1E] border border-slate-800 hover:border-[#00FF85] text-slate-300 hover:text-white rounded-xl py-5 flex items-center justify-between group transition-all"
+                  >
+                    <div className="flex items-center gap-2">
+                      {generatingDoc === type ? (
+                        <Loader2 className="w-4 h-4 text-[#00FF85] animate-spin" />
+                      ) : (
+                        <Icon className="w-4 h-4 text-slate-500 group-hover:text-[#00FF85] transition-colors" />
+                      )}
+                      <span className="text-xs">{label}</span>
+                    </div>
+                    {exists ? (
+                      <CheckCircle className="w-4 h-4 text-[#00FF85]" />
+                    ) : (
+                      <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Generate</span>
+                    )}
+                  </Button>
+                );
+              })}
             </div>
 
-            {/* Live Document Vault */}
-            {generatedDocs.length > 0 && (
+            {/* Document Vault — real generated documents */}
+            {documents.length > 0 && (
               <div className="mt-6 pt-4 border-t border-slate-800/80 space-y-2.5">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Document Vault</p>
-                {generatedDocs.map((doc) => (
-                  <div key={doc} className="flex items-center justify-between bg-[#0A0F1E] p-3 rounded-xl border border-slate-800/80 animate-fadeIn">
-                    <span className="text-xs text-white font-mono uppercase font-bold">{doc}_DRAFT_v1.pdf</span>
-                    <button className="p-1.5 bg-[#00FF85]/10 hover:bg-[#00FF85]/20 border border-[#00FF85]/20 text-[#00FF85] rounded-lg transition-colors">
-                      <Download className="w-3.5 h-3.5" />
-                    </button>
+                {documents.map((doc) => (
+                  <div key={doc.id} className="bg-[#0A0F1E] p-3 rounded-xl border border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-white font-semibold truncate mr-2">{doc.title || doc.documentType?.toUpperCase()}</span>
+                      <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
+                        doc.status === "executed" ? "bg-[#00FF85]/10 border-[#00FF85]/20 text-[#00FF85]" :
+                        doc.status === "signed" ? "bg-[#0080FF]/10 border-[#0080FF]/20 text-[#0080FF]" :
+                        "bg-slate-800 border-slate-700 text-slate-400"
+                      }`}>{doc.status?.toUpperCase()}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {doc.content?.markdown && (
+                        <button 
+                          onClick={() => {
+                            const blob = new Blob([doc.content.markdown], { type: "text/markdown" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${doc.documentType}_v${doc.version}.md`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                          className="flex items-center gap-1 p-1.5 bg-[#00FF85]/10 hover:bg-[#00FF85]/20 border border-[#00FF85]/20 text-[#00FF85] rounded-lg transition-colors text-[10px]"
+                        >
+                          <Download className="w-3 h-3" /> Download
+                        </button>
+                      )}
+                      {!doc.signedByBuyer && userId === deal?.buyerId && (
+                        <button 
+                          onClick={async () => {
+                            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+                            const token = localStorage.getItem("access_token");
+                            const res = await fetch(`${API_BASE}/deals/${dealId}/documents/${doc.id}/sign`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setDocuments(prev => prev.map(d => d.id === doc.id ? (data.data || data) : d));
+                            }
+                          }}
+                          className="flex items-center gap-1 p-1.5 bg-[#0080FF]/10 hover:bg-[#0080FF]/20 border border-[#0080FF]/20 text-[#0080FF] rounded-lg transition-colors text-[10px]"
+                        >
+                          Sign as Buyer
+                        </button>
+                      )}
+                      {!doc.signedBySeller && userId === deal?.sellerId && (
+                        <button 
+                          onClick={async () => {
+                            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+                            const token = localStorage.getItem("access_token");
+                            const res = await fetch(`${API_BASE}/deals/${dealId}/documents/${doc.id}/sign`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setDocuments(prev => prev.map(d => d.id === doc.id ? (data.data || data) : d));
+                            }
+                          }}
+                          className="flex items-center gap-1 p-1.5 bg-[#0080FF]/10 hover:bg-[#0080FF]/20 border border-[#0080FF]/20 text-[#0080FF] rounded-lg transition-colors text-[10px]"
+                        >
+                          Sign as Seller
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -386,7 +389,7 @@ export default function DealRoomPage() {
             <AnimatePresence initial={false}>
               {messages.map((msg, idx) => {
                 const isSystem = msg.senderId === "system";
-                const isMe = msg.senderId === "me";
+                const isMe = msg.senderId === userId;
                 return (
                   <motion.div
                     key={idx}
@@ -422,7 +425,7 @@ export default function DealRoomPage() {
 
                           {/* Meta timestamps */}
                           <div className={`text-[9px] text-slate-500 font-mono mt-1 ${isMe ? "text-right" : "text-left"}`}>
-                            {msg.timestamp || "Just now"}
+                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now"}
                           </div>
                         </div>
                       </div>

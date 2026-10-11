@@ -284,6 +284,8 @@ export default function ListingDetailsPage() {
   const [listingForm, setListingForm] = useState<any>({});
   const { toast } = useToast();
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("access_token");
@@ -320,14 +322,14 @@ export default function ListingDetailsPage() {
       try {
         let raw: any = null;
         // 1. Direct query by slug or UUID
-        const res = await fetch(`http://localhost:4000/v1/listings/${slug}`);
+        const res = await fetch(`${API_BASE}/listings/${slug}`);
         if (res.ok) {
           const resJson = await res.json();
           raw = resJson.data || resJson;
         } else {
           // 2. Query all listings to match by id or slug
           try {
-            const listRes = await fetch("http://localhost:4000/v1/listings?limit=100");
+            const listRes = await fetch(`${API_BASE}/listings?limit=100`);
             if (listRes.ok) {
               const listJson = await listRes.json();
               const listData = listJson.data || listJson;
@@ -406,7 +408,7 @@ export default function ListingDetailsPage() {
     try {
       const token = localStorage.getItem("access_token");
       const targetId = listing?.id || slug;
-      const res = await fetch(`http://localhost:4000/v1/listings/${targetId}`, {
+      const res = await fetch(`${API_BASE}/listings/${targetId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -447,7 +449,7 @@ export default function ListingDetailsPage() {
         router.push("/auth");
         return;
       }
-      const res = await fetch("http://localhost:4000/v1/deals", {
+      const res = await fetch(`${API_BASE}/deals`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

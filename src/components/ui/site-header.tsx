@@ -16,6 +16,8 @@ export function SiteHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { toast } = useToast();
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+
   // Read login state on boot
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -35,7 +37,7 @@ export function SiteHeader() {
       }
 
       // Live fetch /v1/auth/me to check DB role
-      fetch("http://localhost:4000/v1/auth/me", {
+      fetch(`${API_BASE}/auth/me`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       .then(res => res.json())
