@@ -28,6 +28,7 @@ import {
   CheckCircle
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { Pagination } from "@/components/ui/pagination";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
 import { CurrencySwitcher } from "@/components/ui/currency-switcher";
@@ -49,6 +50,8 @@ const performanceData = [
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [deals, setDeals] = useState<any[]>([]);
+  const [dealsPage, setDealsPage] = useState(1);
+  const DEALS_PER_PAGE = 5;
   const [loading, setLoading] = useState(true);
   const { format: formatPrice } = useCurrency();
   const [userContext, setUserContext] = useState<{ email: string; role: string; userId: string } | null>(null);
@@ -492,41 +495,51 @@ export default function DashboardPage() {
                     {loading ? (
                       <div className="animate-pulse bg-[#131A2E]/50 border border-slate-800 h-48 rounded-2xl" />
                     ) : deals.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-4">
-                        {deals.map((deal: any) => (
-                          <div key={deal.id} className="bg-[#1C2333]/80 border border-slate-800 hover:border-slate-700 transition-colors rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 group shadow-lg">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" /> {deal.status.replace('_', ' ')}
-                                </span>
-                                <span className="text-slate-500 text-xs font-mono">ID: {deal.id.split('-')[0]}</span>
+                      <>
+                        <div className="grid grid-cols-1 gap-4">
+                          {deals.slice((dealsPage - 1) * DEALS_PER_PAGE, dealsPage * DEALS_PER_PAGE).map((deal: any) => (
+                            <div key={deal.id} className="bg-[#1C2333]/80 border border-slate-800 hover:border-slate-700 transition-colors rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 group shadow-lg">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" /> {deal.status.replace('_', ' ')}
+                                  </span>
+                                  <span className="text-slate-500 text-xs font-mono">ID: {deal.id.split('-')[0]}</span>
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-2">{deal.listingId}</h3>
+                                
+                                <div className="flex gap-6 mt-3">
+                                  <div>
+                                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-0.5">Agreed Price</p>
+                                    <p className="text-[#00FF85] font-semibold font-mono text-lg">{deal.agreedPrice != null ? formatPrice(deal.agreedPrice) : "Pending"}</p>
+                                  </div>
+                                  <div className="hidden sm:block">
+                                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-0.5">Your Role</p>
+                                    <p className="text-slate-300 capitalize">{deal.buyerId === userContext?.userId ? "Buyer" : "Seller"}</p>
+                                  </div>
+                                </div>
                               </div>
-                              <h3 className="text-xl font-bold text-white mb-2">{deal.listingId}</h3>
                               
-                              <div className="flex gap-6 mt-3">
-                                <div>
-                                  <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-0.5">Agreed Price</p>
-                                  <p className="text-[#00FF85] font-semibold font-mono text-lg">{deal.agreedPrice != null ? formatPrice(deal.agreedPrice) : "Pending"}</p>
-                                </div>
-                                <div className="hidden sm:block">
-                                  <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-0.5">Your Role</p>
-                                  <p className="text-slate-300 capitalize">{deal.buyerId === userContext?.userId ? "Buyer" : "Seller"}</p>
-                                </div>
+                              <div className="flex flex-col items-end gap-3 shrink-0">
+                                <Link href={`/deal/${deal.id}`}>
+                                  <Button className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white font-semibold transition-all px-6">
+                                    Enter Deal Room <ChevronRight className="w-4 h-4 ml-1" />
+                                  </Button>
+                                </Link>
+                                <span className="text-[10px] text-slate-500">Updated recently</span>
                               </div>
                             </div>
-                            
-                            <div className="flex flex-col items-end gap-3 shrink-0">
-                              <Link href={`/deal/${deal.id}`}>
-                                <Button className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white font-semibold transition-all px-6">
-                                  Enter Deal Room <ChevronRight className="w-4 h-4 ml-1" />
-                                </Button>
-                              </Link>
-                              <span className="text-[10px] text-slate-500">Updated recently</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                        <Pagination
+                          page={dealsPage}
+                          totalPages={Math.ceil(deals.length / DEALS_PER_PAGE)}
+                          total={deals.length}
+                          limit={DEALS_PER_PAGE}
+                          onPageChange={setDealsPage}
+                          className="mt-6 pt-6 border-t border-slate-800/80"
+                        />
+                      </>
                     ) : (
                       <div className="bg-[#1C2333]/30 border border-slate-800 border-dashed rounded-2xl p-16 flex flex-col items-center justify-center text-center">
                         <Briefcase className="w-12 h-12 text-slate-600 mb-4" />

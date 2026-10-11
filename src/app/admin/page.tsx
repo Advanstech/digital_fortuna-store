@@ -112,6 +112,9 @@ export default function AdminConsole() {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("all");
   const [userKycFilter, setUserKycFilter] = useState("all");
+  const [activityListingsPage, setActivityListingsPage] = useState(1);
+  const [activityOffersPage, setActivityOffersPage] = useState(1);
+  const DRAWER_ITEMS_PER_PAGE = 5;
 
   // Admin metrics
   const [adminMetrics, setAdminMetrics] = useState<any>(null);
@@ -323,6 +326,8 @@ export default function AdminConsole() {
     setSelectedUser(user);
     setUserDrawerTab("profile");
     setIsEditingProfile(false);
+    setActivityListingsPage(1);
+    setActivityOffersPage(1);
     setIsUserDrawerOpen(true);
     setLoadingUserDetail(true);
     try {
@@ -1105,6 +1110,14 @@ export default function AdminConsole() {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  page={escrowPage}
+                  totalPages={Math.ceil(escrowList.length / ITEMS_PER_PAGE)}
+                  total={escrowList.length}
+                  limit={ITEMS_PER_PAGE}
+                  onPageChange={setEscrowPage}
+                  className="mt-6 border-t border-slate-800/80 pt-6 px-4"
+                />
               </motion.div>
             )}
 
@@ -1365,6 +1378,7 @@ export default function AdminConsole() {
                     {logsList
                       .filter((l) => logFilter === "ALL" || l.level === logFilter)
                       .filter((l) => !logSearch || l.message.toLowerCase().includes(logSearch.toLowerCase()) || l.service.toLowerCase().includes(logSearch.toLowerCase()))
+                      .slice((logsPage - 1) * ITEMS_PER_PAGE, logsPage * ITEMS_PER_PAGE)
                       .map((l) => (
                         <div key={l.id} className="flex flex-col sm:flex-row items-start gap-2 hover:bg-white/5 p-1 rounded transition-colors">
                           <span className="text-slate-500 shrink-0">[{l.timestamp}]</span>
@@ -1674,28 +1688,38 @@ export default function AdminConsole() {
                     <div>
                       <h5 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3">Listings ({selectedUser.listings?.length || 0})</h5>
                       {selectedUser.listings && selectedUser.listings.length > 0 ? (
-                        <div className="space-y-2">
-                          {selectedUser.listings.map((listing: any) => (
-                            <div key={listing.id} className="bg-[#131A2E] p-3 rounded-xl flex items-center justify-between">
-                              <div>
-                                <div className="text-white text-sm font-medium">{listing.title}</div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{listing.category}</span>
-                                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
-                                    listing.status === 'live' ? 'bg-emerald-500/10 text-emerald-400' :
-                                    listing.status === 'review' ? 'bg-amber-500/10 text-amber-400' :
-                                    listing.status === 'sold' ? 'bg-purple-500/10 text-purple-400' :
-                                    'bg-slate-800 text-slate-400'
-                                  }`}>{listing.status}</span>
+                        <>
+                          <div className="space-y-2">
+                            {selectedUser.listings.slice((activityListingsPage - 1) * DRAWER_ITEMS_PER_PAGE, activityListingsPage * DRAWER_ITEMS_PER_PAGE).map((listing: any) => (
+                              <div key={listing.id} className="bg-[#131A2E] p-3 rounded-xl flex items-center justify-between">
+                                <div>
+                                  <div className="text-white text-sm font-medium">{listing.title}</div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{listing.category}</span>
+                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                      listing.status === 'live' ? 'bg-emerald-500/10 text-emerald-400' :
+                                      listing.status === 'review' ? 'bg-amber-500/10 text-amber-400' :
+                                      listing.status === 'sold' ? 'bg-purple-500/10 text-purple-400' :
+                                      'bg-slate-800 text-slate-400'
+                                    }`}>{listing.status}</span>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-[#00FF85] font-mono text-sm font-bold">{listing.acquisitionPrice ? `$${listing.acquisitionPrice.toLocaleString()}` : "—"}</div>
+                                  <div className="text-[10px] text-slate-500">{new Date(listing.createdAt).toLocaleDateString()}</div>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <div className="text-[#00FF85] font-mono text-sm font-bold">{listing.acquisitionPrice ? `$${listing.acquisitionPrice.toLocaleString()}` : "—"}</div>
-                                <div className="text-[10px] text-slate-500">{new Date(listing.createdAt).toLocaleDateString()}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                          <Pagination
+                            page={activityListingsPage}
+                            totalPages={Math.ceil(selectedUser.listings.length / DRAWER_ITEMS_PER_PAGE)}
+                            total={selectedUser.listings.length}
+                            limit={DRAWER_ITEMS_PER_PAGE}
+                            onPageChange={setActivityListingsPage}
+                            className="mt-3 pt-3 border-t border-slate-800/50"
+                          />
+                        </>
                       ) : (
                         <p className="text-slate-500 text-xs italic">No listings created</p>
                       )}
@@ -1705,24 +1729,34 @@ export default function AdminConsole() {
                     <div>
                       <h5 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3">Offers Made ({selectedUser.offers?.length || 0})</h5>
                       {selectedUser.offers && selectedUser.offers.length > 0 ? (
-                        <div className="space-y-2">
-                          {selectedUser.offers.map((offer: any) => (
-                            <div key={offer.id} className="bg-[#131A2E] p-3 rounded-xl flex items-center justify-between">
-                              <div>
-                                <div className="text-white text-sm font-medium">{offer.listingTitle || "Unknown Listing"}</div>
-                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded mt-1 inline-block ${
-                                  offer.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-400' :
-                                  offer.status === 'rejected' ? 'bg-red-500/10 text-red-400' :
-                                  'bg-amber-500/10 text-amber-400'
-                                }`}>{offer.status}</span>
+                        <>
+                          <div className="space-y-2">
+                            {selectedUser.offers.slice((activityOffersPage - 1) * DRAWER_ITEMS_PER_PAGE, activityOffersPage * DRAWER_ITEMS_PER_PAGE).map((offer: any) => (
+                              <div key={offer.id} className="bg-[#131A2E] p-3 rounded-xl flex items-center justify-between">
+                                <div>
+                                  <div className="text-white text-sm font-medium">{offer.listingTitle || "Unknown Listing"}</div>
+                                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded mt-1 inline-block ${
+                                    offer.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-400' :
+                                    offer.status === 'rejected' ? 'bg-red-500/10 text-red-400' :
+                                    'bg-amber-500/10 text-amber-400'
+                                  }`}>{offer.status}</span>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-[#0080FF] font-mono text-sm font-bold">${(offer.amount / 100).toLocaleString()}</div>
+                                  <div className="text-[10px] text-slate-500">{new Date(offer.createdAt).toLocaleDateString()}</div>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <div className="text-[#0080FF] font-mono text-sm font-bold">${(offer.amount / 100).toLocaleString()}</div>
-                                <div className="text-[10px] text-slate-500">{new Date(offer.createdAt).toLocaleDateString()}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                          <Pagination
+                            page={activityOffersPage}
+                            totalPages={Math.ceil(selectedUser.offers.length / DRAWER_ITEMS_PER_PAGE)}
+                            total={selectedUser.offers.length}
+                            limit={DRAWER_ITEMS_PER_PAGE}
+                            onPageChange={setActivityOffersPage}
+                            className="mt-3 pt-3 border-t border-slate-800/50"
+                          />
+                        </>
                       ) : (
                         <p className="text-slate-500 text-xs italic">No offers made</p>
                       )}
