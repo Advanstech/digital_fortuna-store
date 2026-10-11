@@ -12,6 +12,16 @@ import { useCurrency } from "@/lib/currency";
 // Premium high-fidelity curated mock listings for fallback representation
 const MOCK_LISTINGS = [
   {
+    id: "jarvis-agent-os",
+    title: "JARVIS - 1-Person Business AI (Agent OS)",
+    category: "AI & Autonomous Agents",
+    priceUsd: 240000,
+    priceSuffix: "",
+    type: "acquisition" as const,
+    imageUrl: "/images/premium_hero_bg.png",
+    techStack: "Agent OS, FastAPI, Next.js 16, LangGraph, Claude"
+  },
+  {
     id: "mock-1",
     title: "ModernRx POS",
     category: "Healthcare & Pharmacy",
@@ -76,6 +86,7 @@ const MOCK_LISTINGS = [
 // Pill label -> API category enum value
 const CATEGORIES: { label: string; value?: string }[] = [
   { label: "All" },
+  { label: "AI & Agents", value: "ai" },
   { label: "SaaS", value: "saas" },
   { label: "POS", value: "pos" },
   { label: "Mobile", value: "mobile" },
@@ -98,7 +109,8 @@ function formatListing(item: any) {
     priceUsd: acquisitionPrice || licensePrice || null,
     priceSuffix: !acquisitionPrice && licensePrice ? "/mo" : "",
     type: (licensePrice && !acquisitionPrice ? "saas" : "acquisition") as "saas" | "acquisition",
-    imageUrl: item.demoUrl || "/images/modernrx.png"
+    imageUrl: item.demoUrl || "/images/modernrx.png",
+    tagline: item.tagline || item.description || "Production-ready sovereign asset."
   };
 }
 
@@ -309,6 +321,7 @@ export default function CatalogPage() {
                       price={listing.priceUsd != null ? formatPrice(listing.priceUsd, { suffix: listing.priceSuffix }) : "Contact"}
                       type={listing.type}
                       imageUrl={listing.imageUrl}
+                      tagline={listing.tagline}
                     />
                   </motion.div>
                 ))

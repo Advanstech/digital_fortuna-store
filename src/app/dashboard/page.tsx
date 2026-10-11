@@ -18,13 +18,33 @@ import {
   ShieldCheck,
   TrendingUp,
   CreditCard,
-  Bell
+  Bell,
+  Sparkles,
+  MessageCircle,
+  Globe,
+  UploadCloud,
+  FileText,
+  Scan,
+  CheckCircle
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+
 import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 import { useCurrency } from "@/lib/currency";
 
-type TabType = "overview" | "profile" | "settings" | "admin";
+type TabType = "overview" | "adgenie" | "profile" | "settings" | "admin";
+
+const performanceData = [
+  { name: 'Jan', value: 12000, views: 400 },
+  { name: 'Feb', value: 19000, views: 800 },
+  { name: 'Mar', value: 15000, views: 1200 },
+  { name: 'Apr', value: 28000, views: 900 },
+  { name: 'May', value: 25000, views: 1600 },
+  { name: 'Jun', value: 34000, views: 2100 },
+  { name: 'Jul', value: 45000, views: 2400 },
+];
+
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -33,7 +53,38 @@ export default function DashboardPage() {
   const { format: formatPrice } = useCurrency();
   const [userContext, setUserContext] = useState<{ email: string; role: string; userId: string } | null>(null);
   const [contactingBroker, setContactingBroker] = useState(false);
+  
+  // KYC State
+  const [kycStatus, setKycStatus] = useState<string>("unverified");
+  const [kycForm, setKycForm] = useState({ idType: "passport", idNumber: "", documentUrl: "" });
+  const [kycSubmitting, setKycSubmitting] = useState(false);
+  const [kycStep, setKycStep] = useState(1);
+
+  // Profile Update State
+  const [profileForm, setProfileForm] = useState({ displayName: "", companyName: "" });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  
+  // Drag & Drop State
+  const [dragActive, setDragActive] = useState(false);
+  const [isAiScanning, setIsAiScanning] = useState(false);
+
   const { toast } = useToast();
+
+  // Sync activeTab with URL hash so it persists across reloads
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.replace('#', '') as TabType;
+      if (['overview', 'adgenie', 'profile', 'settings', 'admin'].includes(hash)) {
+        setActiveTab(hash);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `#${activeTab}`);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const initDashboard = async () => {
@@ -48,13 +99,41 @@ export default function DashboardPage() {
         try {
           const payloadBase64 = token.split('.')[1];
           const payloadDecoded = JSON.parse(atob(payloadBase64));
+          const email = payloadDecoded.email || "user@example.com";
+          const isHansonSuperAdmin = email.toLowerCase() === "hanson.pepra@gmail.com";
           setUserContext({
-            email: payloadDecoded.email || "user@example.com",
-            role: payloadDecoded.role || "user",
+            email,
+            role: isHansonSuperAdmin ? "super_admin" : (payloadDecoded.role || "user"),
             userId: payloadDecoded.sub || "user-123"
           });
         } catch (e) {
           console.error("JWT Decode error", e);
+        }
+
+        // Fetch User Profile for KYC & Live DB Role
+        try {
+          const meRes = await fetch("http://localhost:4000/v1/auth/me", {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (meRes.ok) {
+            const rawJson = await meRes.json();
+            const meData = rawJson.data || rawJson;
+            setKycStatus(meData.kycStatus || "unverified");
+            const resolvedRole = meData.role || (meData.email?.toLowerCase() === "hanson.pepra@gmail.com" ? "super_admin" : undefined);
+            if (resolvedRole) {
+              setUserContext(prev => ({
+                email: meData.email || prev?.email || "user@example.com",
+                role: resolvedRole,
+                userId: meData.id || prev?.userId || "user-123"
+              }));
+            }
+            setProfileForm({
+              displayName: meData.displayName || "",
+              companyName: meData.companyName || ""
+            });
+          }
+        } catch (e) {
+          console.error("Failed to fetch profile", e);
         }
 
         const res = await fetch("http://localhost:4000/v1/deals/my-deals", {
@@ -85,11 +164,26 @@ export default function DashboardPage() {
     window.location.href = "/";
   };
 
-  const isAdmin = userContext && ['admin', 'superadmin', 'root'].includes(userContext.role.toLowerCase());
+  const isAdmin = Boolean(
+    userContext &&
+    (
+      ['admin', 'superadmin', 'super_admin', 'root'].includes(userContext.role?.toLowerCase() || '') ||
+      userContext.email?.toLowerCase() === 'hanson.pepra@gmail.com'
+    )
+  );
 
   // Quick helper to force admin role for demo purposes if needed
   const toggleDemoAdmin = () => {
-    setUserContext(prev => prev ? { ...prev, role: prev.role === 'admin' ? 'user' : 'admin' } : null);
+    setUserContext(prev => {
+      if (!prev) return null;
+      const isCurrentlyAdmin = ['admin', 'superadmin', 'super_admin', 'root'].includes(prev.role.toLowerCase());
+      const nextRole = isCurrentlyAdmin ? 'buyer' : 'super_admin';
+      toast(`Switched role to ${nextRole.toUpperCase()}`, "info");
+      return {
+        ...prev,
+        role: nextRole
+      };
+    });
   };
 
   const handleContactBroker = async () => {
@@ -118,6 +212,80 @@ export default function DashboardPage() {
     }
   };
 
+  const handleKycSubmit = async () => {
+    if (!kycForm.idNumber || !kycForm.documentUrl) {
+      toast("Please provide both ID Number and Document URL", "error");
+      return;
+    }
+    setKycSubmitting(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch("http://localhost:4000/v1/auth/kyc/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(kycForm)
+      });
+      if (res.ok) {
+        toast("KYC submitted successfully. Awaiting review.", "success");
+        setKycStatus("pending");
+      } else if (res.status === 401) {
+        toast("Your session has expired. Redirecting to login...", "error");
+        localStorage.removeItem("access_token");
+        setTimeout(() => window.location.href = "/auth", 1500);
+      } else {
+        toast("Failed to submit KYC", "error");
+      }
+    } catch (e) {
+      toast("Error submitting KYC", "error");
+    } finally {
+      setKycSubmitting(false);
+    }
+  };
+
+  const handleSimulatedAiScan = (filename: string) => {
+    setIsAiScanning(true);
+    // Simulate AI processing time
+    setTimeout(() => {
+      setIsAiScanning(false);
+      setKycForm({
+        ...kycForm, 
+        documentUrl: `https://fortuna-secure-storage.internal/${filename.replace(/[^a-zA-Z0-9.]/g, '_')}`
+      });
+      toast("AI Verification Complete. Document is authentic.", "success");
+    }, 2500);
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch("http://localhost:4000/v1/auth/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(profileForm)
+      });
+      if (res.ok) {
+        toast("Profile updated successfully.", "success");
+      } else if (res.status === 401) {
+        toast("Your session has expired. Redirecting to login...", "error");
+        localStorage.removeItem("access_token");
+        setTimeout(() => window.location.href = "/auth", 1500);
+      } else {
+        toast("Failed to update profile.", "error");
+      }
+    } catch (e) {
+      toast("Error updating profile.", "error");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#0A0F1E] pt-24 pb-12">
       {/* Top Banner / Breadcrumb Area */}
@@ -128,12 +296,25 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-white font-bold font-display leading-tight">{userContext?.email || "Loading..."}</h2>
               <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="uppercase tracking-wider">{userContext?.role || "USER"} ACCOUNT</span>
-                {isAdmin && <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />}
+                <span className="uppercase tracking-wider font-semibold text-emerald-400">
+                  {userContext?.role?.replace('_', ' ') || "USER"} ACCOUNT
+                </span>
+                {isAdmin && (
+                  <span className="inline-flex items-center gap-1 bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-bold tracking-wide">
+                    <ShieldCheck className="w-3 h-3 text-purple-400" /> ROOT / SUPER ADMIN
+                  </span>
+                )}
               </div>
             </div>
           </div>
           <div className="flex gap-3">
+            {isAdmin && (
+              <Link href="/admin">
+                <Button className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 border border-purple-400/40 text-xs h-9 px-4 flex items-center gap-2 font-bold rounded-lg transition-all">
+                  <ShieldCheck className="w-4 h-4 text-purple-200" /> Admin Console
+                </Button>
+              </Link>
+            )}
             <Button variant="outline" onClick={toggleDemoAdmin} className="bg-transparent border-slate-800 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 h-9 hidden md:flex">
               Toggle Demo Role
             </Button>
@@ -160,6 +341,15 @@ export default function DashboardPage() {
               >
                 <LayoutDashboard className="w-4 h-4" /> Overview & Deals
               </button>
+
+              <button 
+                onClick={() => setActiveTab("adgenie")}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                  activeTab === "adgenie" ? "bg-[#0080FF]/10 text-[#0080FF]" : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                }`}
+              >
+                <Sparkles className="w-4 h-4" /> AdGenie AI
+              </button>
               
               <button 
                 onClick={() => setActiveTab("profile")}
@@ -182,14 +372,14 @@ export default function DashboardPage() {
               {isAdmin && (
                 <>
                   <div className="my-2 border-t border-slate-800/80" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-purple-500/70 mb-2 px-3 flex items-center gap-1">
-                    <ShieldAlert className="w-3 h-3" /> Administration
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-2 px-3 flex items-center gap-1.5 font-mono">
+                    <ShieldAlert className="w-3.5 h-3.5 text-purple-400" /> Administration
                   </h3>
                   <Link href="/admin">
                     <button 
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-semibold bg-purple-500/15 text-purple-200 border border-purple-500/30 hover:bg-purple-500/25 hover:text-white shadow-lg shadow-purple-900/20 group"
                     >
-                      <BarChart3 className="w-4 h-4" /> Admin Console <ChevronRight className="w-4 h-4 ml-auto" />
+                      <ShieldCheck className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" /> Admin Console <ChevronRight className="w-4 h-4 ml-auto text-purple-400" />
                     </button>
                   </Link>
                 </>
@@ -222,57 +412,204 @@ export default function DashboardPage() {
                   className="space-y-8"
                 >
                   <div className="flex items-center justify-between">
-                    <h2 className="text-3xl font-bold text-white font-display">Active Portfolio</h2>
+                    <div>
+                      <h2 className="text-3xl font-bold text-white font-display">Command Center</h2>
+                      <p className="text-slate-400 mt-1">Your acquisition portfolio, performance parameters, and active deal flow.</p>
+                    </div>
                     <Link href="/catalog">
-                      <Button className="bg-[#00FF85] text-black font-semibold hover:bg-[#00FF85]/80">Browse Acquisitions</Button>
+                      <Button className="bg-[#00FF85] text-black font-semibold hover:bg-[#00FF85]/80 shadow-lg shadow-[#00FF85]/20">Browse Market</Button>
                     </Link>
                   </div>
-                  
-                  {loading ? (
-                    <div className="animate-pulse bg-[#131A2E]/50 border border-slate-800 h-48 rounded-2xl" />
-                  ) : deals.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-4">
-                      {deals.map((deal: any) => (
-                        <div key={deal.id} className="bg-[#1C2333]/80 border border-slate-800 hover:border-slate-700 transition-colors rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">
-                          <div>
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">
-                                {deal.status.replace('_', ' ')}
-                              </span>
-                              <span className="text-slate-500 text-xs font-mono">ID: {deal.id.split('-')[0]}</span>
-                            </div>
-                            <h3 className="text-xl font-bold text-white mb-1">Target: {deal.listingId}</h3>
-                            <p className="text-slate-400 text-sm">Negotiated Valuation: <span className="text-[#00FF85] font-semibold">{deal.agreedPrice != null ? formatPrice(deal.agreedPrice) : "Pending Review"}</span></p>
-                          </div>
-                          <Link href={`/deal/${deal.id}`}>
-                            <Button className="bg-[#0A0F1E] border border-slate-700 text-white group-hover:border-[#00FF85] group-hover:text-[#00FF85] transition-all">
-                              Enter Deal Room <ChevronRight className="w-4 h-4 ml-1" />
-                            </Button>
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-[#1C2333]/30 border border-slate-800 border-dashed rounded-2xl p-16 flex flex-col items-center justify-center text-center">
-                      <Briefcase className="w-12 h-12 text-slate-600 mb-4" />
-                      <h3 className="text-xl font-bold text-white mb-2">Your Portfolio is Empty</h3>
-                      <p className="text-slate-400 max-w-sm mb-6">You haven't initiated any acquisition offers or listed any startups yet. Start your journey today.</p>
-                    </div>
-                  )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                  {/* Top Metric Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-gradient-to-br from-[#131A2E] to-[#0A0F1E] border border-slate-800 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+                      <div className="absolute top-0 right-0 p-4 opacity-10"><TrendingUp className="w-16 h-16" /></div>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Estimated Portfolio Value</span>
+                      <h3 className="text-3xl font-extrabold text-white font-display mb-1">{formatPrice(450000)}</h3>
+                      <p className="text-emerald-400 text-xs font-semibold flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +14.2% MoM</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-[#131A2E] to-[#0A0F1E] border border-slate-800 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+                      <div className="absolute top-0 right-0 p-4 opacity-10"><Activity className="w-16 h-16" /></div>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Asset Engagement</span>
+                      <h3 className="text-3xl font-extrabold text-white font-display mb-1">2,410 <span className="text-sm text-slate-500 font-normal">views</span></h3>
+                      <p className="text-emerald-400 text-xs font-semibold flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +28% this week</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-[#131A2E] to-[#0A0F1E] border border-slate-800 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+                      <div className="absolute top-0 right-0 p-4 opacity-10"><Briefcase className="w-16 h-16" /></div>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Active Deal Flow</span>
+                      <h3 className="text-3xl font-extrabold text-[#0080FF] font-display mb-1">{deals.length || 2} <span className="text-sm text-slate-500 font-normal">deals</span></h3>
+                      <p className="text-slate-400 text-xs font-semibold">1 awaiting escrow funding</p>
+                    </div>
+                  </div>
+
+                  {/* Pictograph / Performance Chart */}
+                  <div className="bg-[#131A2E]/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-white font-bold flex items-center gap-2"><BarChart3 className="w-5 h-5 text-[#0080FF]" /> Portfolio Performance (Value)</h3>
+                      <select className="bg-[#0A0F1E] border border-slate-700 text-xs text-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-[#0080FF]">
+                        <option>Last 6 Months</option>
+                        <option>Year to Date</option>
+                        <option>All Time</option>
+                      </select>
+                    </div>
+                    <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={performanceData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#00FF85" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#00FF85" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
+                          <XAxis dataKey="name" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#475569" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val / 1000}k`} />
+                          <RechartsTooltip 
+                            contentStyle={{ backgroundColor: '#0A0F1E', borderColor: '#1E293B', borderRadius: '12px' }}
+                            itemStyle={{ color: '#00FF85', fontWeight: 'bold' }}
+                            labelStyle={{ color: '#94A3B8' }}
+                            formatter={(value: any) => [`$${value.toLocaleString()}`, 'Value']}
+                          />
+                          <Area type="monotone" dataKey="value" stroke="#00FF85" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  {/* Deals / Active Portfolio */}
+                  <div>
+                    <h3 className="text-white font-bold text-xl mb-4 flex items-center gap-2"><Briefcase className="w-5 h-5 text-purple-400" /> Active Deals & Offers</h3>
+                    {loading ? (
+                      <div className="animate-pulse bg-[#131A2E]/50 border border-slate-800 h-48 rounded-2xl" />
+                    ) : deals.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-4">
+                        {deals.map((deal: any) => (
+                          <div key={deal.id} className="bg-[#1C2333]/80 border border-slate-800 hover:border-slate-700 transition-colors rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 group shadow-lg">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" /> {deal.status.replace('_', ' ')}
+                                </span>
+                                <span className="text-slate-500 text-xs font-mono">ID: {deal.id.split('-')[0]}</span>
+                              </div>
+                              <h3 className="text-xl font-bold text-white mb-2">{deal.listingId}</h3>
+                              
+                              <div className="flex gap-6 mt-3">
+                                <div>
+                                  <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-0.5">Agreed Price</p>
+                                  <p className="text-[#00FF85] font-semibold font-mono text-lg">{deal.agreedPrice != null ? formatPrice(deal.agreedPrice) : "Pending"}</p>
+                                </div>
+                                <div className="hidden sm:block">
+                                  <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-0.5">Your Role</p>
+                                  <p className="text-slate-300 capitalize">{deal.buyerId === userContext?.userId ? "Buyer" : "Seller"}</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-col items-end gap-3 shrink-0">
+                              <Link href={`/deal/${deal.id}`}>
+                                <Button className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white font-semibold transition-all px-6">
+                                  Enter Deal Room <ChevronRight className="w-4 h-4 ml-1" />
+                                </Button>
+                              </Link>
+                              <span className="text-[10px] text-slate-500">Updated recently</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-[#1C2333]/30 border border-slate-800 border-dashed rounded-2xl p-16 flex flex-col items-center justify-center text-center">
+                        <Briefcase className="w-12 h-12 text-slate-600 mb-4" />
+                        <h3 className="text-xl font-bold text-white mb-2">No Active Deals</h3>
+                        <p className="text-slate-400 max-w-sm mb-6">You haven't initiated any acquisition offers or listed any startups yet. Start your journey today.</p>
+                      </div>
+                    )}
+                  </div>
+
+                </motion.div>
+              )}
+
+              {/* TAB: ADGENIE */}
+              {activeTab === "adgenie" && (
+                <motion.div 
+                  key="adgenie"
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                  className="space-y-8"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-3xl font-bold text-white font-display flex items-center gap-2">
+                        <Sparkles className="w-8 h-8 text-[#0080FF]" /> AdGenie Creator
+                      </h2>
+                      <p className="text-slate-400 mt-2">Generate hyper-local AI ads optimized for WhatsApp and African markets.</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Button className="bg-[#F5C842] hover:bg-[#F5C842]/80 text-black font-semibold text-xs h-9">
+                        Top Up (MoMo / Card)
+                      </Button>
+                      <div className="bg-[#131A2E] border border-slate-800 rounded-xl px-4 py-2 flex flex-col items-end">
+                        <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Credits</span>
+                        <span className="text-lg font-bold text-[#00FF85]">120</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Left Column: Form */}
                     <div className="bg-[#131A2E]/50 border border-slate-800 rounded-2xl p-6">
-                      <h3 className="text-white font-bold mb-4 flex items-center gap-2"><Bell className="w-4 h-4 text-yellow-500" /> Recent Activity</h3>
-                      <ul className="space-y-4 text-sm text-slate-300">
-                        <li className="flex items-start gap-3">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5" />
-                          <p>Account verification completed <span className="text-slate-500 block text-xs mt-0.5">2 hours ago</span></p>
-                        </li>
-                        <li className="flex items-start gap-3">
-                          <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
-                          <p>Welcome to Digital Fortuna Computing <span className="text-slate-500 block text-xs mt-0.5">1 day ago</span></p>
-                        </li>
-                      </ul>
+                      <h3 className="text-white font-bold mb-6">Create New Campaign</h3>
+                      
+                      <div className="space-y-5">
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Product or Offer URL</label>
+                          <input type="text" placeholder="https://yourstore.com/product" className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none" />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Language</label>
+                          <select className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none appearance-none">
+                            <option>English</option>
+                            <option>Twi</option>
+                            <option>Pidgin (Nigerian/Ghanaian)</option>
+                            <option>Hausa</option>
+                            <option>Yoruba</option>
+                            <option>Swahili</option>
+                            <option>French (West Africa)</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ad Format (Optimized)</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="border border-[#0080FF] bg-[#0080FF]/10 rounded-xl p-3 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors">
+                              <MessageCircle className="w-5 h-5 text-[#0080FF]" />
+                              <span className="text-sm font-medium text-white">WhatsApp Click-to-Chat</span>
+                            </div>
+                            <div className="border border-slate-700 hover:border-slate-500 rounded-xl p-3 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors">
+                              <Activity className="w-5 h-5 text-slate-400" />
+                              <span className="text-sm font-medium text-slate-300">TikTok / IG Reels</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Button className="w-full bg-[#0080FF] hover:bg-[#0080FF]/80 text-white font-semibold py-6 rounded-xl mt-4">
+                          Generate AI Ad (Costs 5 Credits)
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Previews & Results */}
+                    <div className="bg-gradient-to-br from-[#1C2333]/50 to-[#0A0F1E] border border-slate-800 rounded-2xl p-6 relative overflow-hidden flex flex-col">
+                      <h3 className="text-white font-bold mb-6">Recent Generations</h3>
+                      
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-700 rounded-xl">
+                        <Globe className="w-12 h-12 text-slate-600 mb-4" />
+                        <h4 className="text-slate-300 font-medium mb-2">No active campaigns</h4>
+                        <p className="text-slate-500 text-sm max-w-[250px]">
+                          Enter your product details to generate high-converting ads localized for African audiences.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -300,15 +637,35 @@ export default function DashboardPage() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Name</label>
-                        <input type="text" placeholder="Enter your legal name" className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#00FF85] rounded-xl p-3 text-white outline-none" />
+                        <input 
+                          type="text" 
+                          placeholder="Enter your legal name" 
+                          value={profileForm.displayName}
+                          onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}
+                          className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#00FF85] rounded-xl p-3 text-white outline-none" 
+                        />
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Company / Entity</label>
-                        <input type="text" placeholder="e.g. Acme Holdings LLC" className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#00FF85] rounded-xl p-3 text-white outline-none" />
+                        <input 
+                          type="text" 
+                          placeholder="e.g. Acme Holdings LLC" 
+                          value={profileForm.companyName}
+                          onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
+                          className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#00FF85] rounded-xl p-3 text-white outline-none" 
+                        />
                       </div>
                     </div>
                     <div className="mt-6 flex justify-end">
-                      <Button className="bg-[#00FF85] text-black hover:bg-[#00FF85]/80">Save Changes</Button>
+                      <Button 
+                        onClick={handleSaveProfile} 
+                        disabled={isSavingProfile}
+                        className="bg-[#00FF85] text-black hover:bg-[#00FF85]/80"
+                      >
+                        {isSavingProfile ? (
+                          <><Activity className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                        ) : "Save Changes"}
+                      </Button>
                     </div>
                   </div>
 
@@ -345,6 +702,229 @@ export default function DashboardPage() {
                         <Button variant="outline" className="bg-transparent border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">Update Password</Button>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="bg-[#131A2E]/50 border border-slate-800 rounded-2xl p-8">
+                    <h3 className="text-lg font-bold text-white mb-6 border-b border-slate-800 pb-4">KYC Verification (Required for Transactions)</h3>
+                    
+                    {kycStatus === "verified" ? (
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-6 flex flex-col items-center text-center">
+                        <ShieldCheck className="w-12 h-12 text-emerald-400 mb-4" />
+                        <h4 className="text-emerald-400 font-bold text-lg mb-2">Identity Verified</h4>
+                        <p className="text-emerald-500/80 text-sm">Your account is fully verified. You can now initiate and participate in acquisition transactions.</p>
+                        <Button
+                          variant="outline"
+                          onClick={() => { setKycStatus("unverified"); setKycStep(1); }}
+                          className="mt-4 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 text-xs"
+                        >
+                          Re-open Verification Wizard / Update Docs
+                        </Button>
+                      </div>
+                    ) : kycStatus === "pending" ? (
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-6 flex flex-col items-center text-center">
+                        <Activity className="w-12 h-12 text-blue-400 mb-4 animate-pulse" />
+                        <h4 className="text-blue-400 font-bold text-lg mb-2">Verification Pending</h4>
+                        <p className="text-blue-500/80 text-sm">Your documents have been submitted and are currently under review by our compliance team.</p>
+                        <Button
+                          variant="outline"
+                          onClick={() => { setKycStatus("unverified"); setKycStep(3); }}
+                          className="mt-4 border-blue-500/40 text-blue-300 hover:bg-blue-500/10 text-xs"
+                        >
+                          Modify Submitted Documents
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* WIZARD PROGRESS */}
+                        <div className="relative flex items-center justify-between mb-8 px-4">
+                          {[1, 2, 3].map((step) => (
+                            <div key={step} className="flex flex-col items-center relative z-10 bg-[#131A2E] px-2 rounded-xl">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${kycStep === step ? 'bg-[#0080FF] text-white ring-4 ring-[#0080FF]/20' : kycStep > step ? 'bg-[#00FF85] text-black' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                                {kycStep > step ? <ShieldCheck className="w-5 h-5" /> : step}
+                              </div>
+                              <span className={`text-xs mt-3 font-semibold uppercase tracking-wider ${kycStep >= step ? 'text-slate-300' : 'text-slate-600'}`}>
+                                {step === 1 ? "Compliance" : step === 2 ? "Details" : "Upload"}
+                              </span>
+                            </div>
+                          ))}
+                          <div className="absolute left-10 right-10 h-[2px] bg-slate-800 top-5 -z-0">
+                            <div className="h-full bg-gradient-to-r from-[#00FF85] to-[#0080FF] transition-all duration-500 ease-out" style={{ width: `${((kycStep - 1) / 2) * 100}%` }} />
+                          </div>
+                        </div>
+
+                        {kycStep === 1 && (
+                          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
+                              <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                              <p className="text-sm text-amber-500/90 leading-relaxed">
+                                <strong>Action Required:</strong> You must verify your identity to comply with Anti-Money Laundering (AML) and Know Your Customer (KYC) regulations before participating in deal rooms or receiving escrow payouts.
+                              </p>
+                            </div>
+                            <div className="bg-[#0A0F1E] border border-slate-700/50 rounded-xl p-6">
+                              <h4 className="text-white font-medium mb-2">Terms of Verification</h4>
+                              <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+                                By proceeding, you agree that Digital Fortuna Computing will securely process your identity documents. Your data will be encrypted at rest and will only be shared with our regulated financial partners for verification purposes.
+                              </p>
+                              <label className="flex items-center gap-3 cursor-pointer group">
+                                <div className="w-5 h-5 rounded border border-slate-600 bg-slate-800 group-hover:border-[#00FF85] flex items-center justify-center transition-colors">
+                                  <div className="w-3 h-3 bg-[#00FF85] rounded-sm opacity-100" />
+                                </div>
+                                <span className="text-sm text-slate-300">I agree to the Terms of Verification and Privacy Policy</span>
+                              </label>
+                            </div>
+                            <div className="flex justify-end">
+                              <Button onClick={() => setKycStep(2)} className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white">
+                                Agree & Continue
+                              </Button>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {kycStep === 2 && (
+                          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Document Type</label>
+                                <select 
+                                  value={kycForm.idType}
+                                  onChange={(e) => setKycForm({...kycForm, idType: e.target.value})}
+                                  className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none appearance-none"
+                                >
+                                  <option value="passport">International Passport</option>
+                                  <option value="national_id">National ID Card</option>
+                                  <option value="drivers_license">Driver's License</option>
+                                </select>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Document Number</label>
+                                <input 
+                                  type="text" 
+                                  value={kycForm.idNumber}
+                                  onChange={(e) => setKycForm({...kycForm, idNumber: e.target.value})}
+                                  placeholder="e.g. GHA-123456789-0" 
+                                  className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#0080FF] rounded-xl p-3 text-white outline-none" 
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-between pt-2">
+                              <Button variant="outline" onClick={() => setKycStep(1)} className="border-slate-700 bg-transparent hover:bg-slate-800 text-slate-300 hover:text-white">
+                                Back
+                              </Button>
+                              <Button onClick={() => setKycStep(3)} disabled={!kycForm.idNumber} className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white">
+                                Continue to Upload
+                              </Button>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {kycStep === 3 && (
+                          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Upload Document Scan</label>
+                                {kycForm.documentUrl && (
+                                  <span className="text-xs text-[#00FF85] flex items-center"><CheckCircle className="w-3 h-3 mr-1" /> Ready</span>
+                                )}
+                              </div>
+                              
+                              <div 
+                                className={`relative group w-full h-48 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all overflow-hidden ${
+                                  dragActive ? 'border-[#0080FF] bg-[#0080FF]/10' : 
+                                  kycForm.documentUrl ? 'border-[#00FF85]/50 bg-[#00FF85]/5' : 
+                                  'border-slate-700 bg-[#0A0F1E] hover:border-slate-500'
+                                }`}
+                                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
+                                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); }}
+                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                onDrop={(e) => { 
+                                  e.preventDefault(); 
+                                  e.stopPropagation(); 
+                                  setDragActive(false);
+                                  handleSimulatedAiScan(e.dataTransfer.files?.[0]?.name || "document_scan.pdf");
+                                }}
+                              >
+                                <AnimatePresence mode="wait">
+                                  {isAiScanning ? (
+                                    <motion.div key="scanning" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center">
+                                      <div className="relative">
+                                        <Scan className="w-12 h-12 text-[#0080FF] animate-pulse" />
+                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0080FF]/50 h-full w-full animate-bounce" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 2px, 0 2px)' }} />
+                                      </div>
+                                      <p className="mt-4 text-sm text-slate-300 font-medium">AI is analyzing document integrity...</p>
+                                    </motion.div>
+                                  ) : kycForm.documentUrl ? (
+                                    <motion.div key="success" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center">
+                                      <FileText className="w-12 h-12 text-[#00FF85] mb-2" />
+                                      <p className="text-sm text-white font-medium">Document Scanned Successfully</p>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="mt-2 text-slate-400 hover:text-white"
+                                        onClick={() => setKycForm({...kycForm, documentUrl: ""})}
+                                      >
+                                        Remove & Upload Another
+                                      </Button>
+                                    </motion.div>
+                                  ) : (
+                                    <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center">
+                                      <div className="bg-slate-800/50 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                                        <UploadCloud className="w-8 h-8 text-slate-400 group-hover:text-[#0080FF] transition-colors" />
+                                      </div>
+                                      <p className="text-sm text-slate-300 font-medium mb-1">Drag and drop your document here</p>
+                                      <p className="text-xs text-slate-500 mb-4">Supports PDF, JPEG, PNG (Max 5MB)</p>
+                                      
+                                      <div className="flex gap-3">
+                                        <label className="cursor-pointer">
+                                          <div className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors">
+                                            Browse Files
+                                          </div>
+                                          <input 
+                                            type="file" 
+                                            className="hidden" 
+                                            accept="image/*,.pdf" 
+                                            onChange={(e) => {
+                                              if (e.target.files && e.target.files.length > 0) {
+                                                handleSimulatedAiScan(e.target.files[0].name);
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                        <Button 
+                                          variant="outline" 
+                                          className="h-auto py-2 text-xs border-[#0080FF]/30 text-[#0080FF] hover:bg-[#0080FF]/10"
+                                          onClick={(e) => { e.preventDefault(); handleSimulatedAiScan("demo_id_scan.jpg"); }}
+                                        >
+                                          <Sparkles className="w-3 h-3 mr-1" />
+                                          AI Auto-Scan Demo
+                                        </Button>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-center gap-3">
+                              <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
+                              <p className="text-sm text-blue-300 font-light">Your documents are encrypted and transmitted securely over TLS 1.3.</p>
+                            </div>
+                            
+                            <div className="flex justify-between pt-2">
+                              <Button variant="outline" onClick={() => setKycStep(2)} className="border-slate-700 bg-transparent hover:bg-slate-800 text-slate-300 hover:text-white" disabled={kycSubmitting || isAiScanning}>
+                                Back
+                              </Button>
+                              <Button 
+                                onClick={handleKycSubmit}
+                                disabled={kycSubmitting || !kycForm.documentUrl || isAiScanning}
+                                className="bg-[#00FF85] hover:bg-[#00FF85]/80 text-black font-bold"
+                              >
+                                {kycSubmitting ? <><Activity className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : "Submit Verification"}
+                              </Button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}

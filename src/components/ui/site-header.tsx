@@ -12,6 +12,7 @@ import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 export function SiteHeader() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { toast } = useToast();
 
@@ -19,12 +20,42 @@ export function SiteHeader() {
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     setIsLoggedIn(!!token);
+
+    if (token) {
+      try {
+        const payloadBase64 = token.split('.')[1];
+        const payloadDecoded = JSON.parse(atob(payloadBase64));
+        const role = (payloadDecoded.role || '').toLowerCase();
+        const email = (payloadDecoded.email || '').toLowerCase();
+        if (['admin', 'superadmin', 'super_admin', 'root'].includes(role) || email === 'hanson.pepra@gmail.com') {
+          setIsAdmin(true);
+        }
+      } catch {
+        // ignore
+      }
+
+      // Live fetch /v1/auth/me to check DB role
+      fetch("http://localhost:4000/v1/auth/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(raw => {
+        const data = raw.data || raw;
+        const role = (data?.role || '').toLowerCase();
+        const email = (data?.email || '').toLowerCase();
+        if (['admin', 'superadmin', 'super_admin', 'root'].includes(role) || email === 'hanson.pepra@gmail.com') {
+          setIsAdmin(true);
+        }
+      })
+      .catch(() => {});
+    }
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     setIsLoggedIn(false);
+    setIsAdmin(false);
     setIsMobileMenuOpen(false);
     toast("Logged out of session. Access terminated.", "info");
     router.push("/");
@@ -36,10 +67,18 @@ export function SiteHeader() {
         
         {/* Brand Logo */}
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold font-display text-white tracking-tight">
-              Digital Fortuna
-            </span>
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative w-9 h-9 rounded-xl overflow-hidden border border-emerald-500/30 shadow-[0_0_15px_rgba(0,255,133,0.2)] group-hover:border-cyan-400/50 group-hover:shadow-[0_0_20px_rgba(0,128,255,0.3)] transition-all bg-[#0A0F1E] flex items-center justify-center p-0.5">
+              <img src="/images/logo.png" alt="Digital Fortuna Computing Logo" className="w-full h-full object-contain rounded-lg" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold font-display text-white tracking-tight group-hover:text-[#00FF85] transition-colors leading-tight">
+                Digital Fortuna
+              </span>
+              <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase -mt-0.5">
+                Computing
+              </span>
+            </div>
           </Link>
           
           {/* Desktop Nav Menus */}
@@ -82,6 +121,16 @@ export function SiteHeader() {
               </>
             ) : (
               <>
+                {isAdmin && (
+                  <Link href="/admin" passHref>
+                    <Button 
+                      variant="ghost" 
+                      className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 shadow-sm"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5 text-purple-400" /> Admin Console
+                    </Button>
+                  </Link>
+                )}
                 <Link href="/dashboard" passHref>
                   <Button 
                     variant="ghost" 
@@ -169,6 +218,15 @@ export function SiteHeader() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
+                  {isAdmin && (
+                    <Link href="/admin" passHref onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button 
+                        className="w-full bg-purple-600/30 hover:bg-purple-600/40 text-purple-200 border border-purple-500/40 py-6 text-base font-bold rounded-xl flex items-center justify-center gap-2"
+                      >
+                        <ShieldAlert className="w-5 h-5 text-purple-400" /> Admin Console
+                      </Button>
+                    </Link>
+                  )}
                   <Link href="/dashboard" passHref onClick={() => setIsMobileMenuOpen(false)}>
                     <Button 
                       variant="outline" 

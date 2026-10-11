@@ -12,15 +12,25 @@ import {
   Globe,
   Rocket,
   ArrowRight,
+  ArrowLeft,
   TrendingUp,
   Award,
   X,
   ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 
 export default function AboutPage() {
   const [selectedLeader, setSelectedLeader] = useState<any>(null);
+  const { toast } = useToast();
+
+  const handleCopyLink = () => {
+    if (typeof window !== 'undefined' && selectedLeader) {
+      navigator.clipboard.writeText(`${window.location.origin}/about#${selectedLeader.name.replace(/\s+/g, '-').toLowerCase()}`);
+      toast("Profile link copied to clipboard!", "success");
+    }
+  };
 
   const stats = [
     { value: "$12M+", label: "Capital Deployed", icon: <TrendingUp className="w-5 h-5" /> },
@@ -55,8 +65,15 @@ export default function AboutPage() {
       image: "/images/founder_1.jpg",
       details: [
         "Led over $400M in tech acquisitions before founding Digital Fortuna Computing.",
-        "Stanford GSB Alumni.",
         "Passionate about democratizing exit opportunities for solo founders."
+      ],
+      academics: [
+        { degree: "MBA", institution: "Stanford Graduate School of Business", year: "2019" },
+        { degree: "BSc Computer Science", institution: "Ashesi University", year: "2014" }
+      ],
+      achievements: [
+        { title: "Forbes 30 Under 30", category: "Finance" },
+        { title: "$400M+ M&A Volume", category: "Transactions" }
       ],
       social: "linkedin.com/in/hansonpeprah"
     },
@@ -67,12 +84,33 @@ export default function AboutPage() {
       image: "/images/founder_2.jpg",
       details: [
         "Core contributor to several major open-source infrastructure projects.",
-        "Holds 3 patents in distributed ledger escrow technologies.",
         "Advocates for female engineers in high-performance computing."
+      ],
+      academics: [
+        { degree: "MSc Computer Science", institution: "MIT", year: "2018" },
+        { degree: "BSc Software Engineering", institution: "University of Waterloo", year: "2016" }
+      ],
+      achievements: [
+        { title: "3 Patents", category: "Distributed Ledger Escrow" },
+        { title: "Stripe Eng Excellence", category: "Engineering" }
       ],
       social: "twitter.com/meilin_code"
     }
   ];
+
+  const currentIndex = selectedLeader ? leaders.findIndex(l => l.name === selectedLeader.name) : -1;
+  
+  const handlePrev = () => {
+    if (currentIndex > -1) {
+      setSelectedLeader(leaders[(currentIndex - 1 + leaders.length) % leaders.length]);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex > -1) {
+      setSelectedLeader(leaders[(currentIndex + 1) % leaders.length]);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#0A0F1E] pt-32 pb-24 relative overflow-x-hidden">
@@ -312,48 +350,117 @@ export default function AboutPage() {
             exit={{ opacity: 0 }}
             onClick={() => setSelectedLeader(null)}
             data-lenis-prevent
-            className="fixed inset-0 bg-[#0A0F1E]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+            className="fixed inset-0 bg-[#0A0F1E]/95 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-8 overflow-y-auto"
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#131A2E] border border-slate-700 rounded-3xl max-w-5xl w-full flex flex-col md:flex-row relative shadow-[0_0_50px_rgba(0,0,0,0.8)] my-8"
+              className="bg-gradient-to-br from-[#131A2E] to-[#0A0F1E] border border-slate-700/80 rounded-[2.5rem] max-w-6xl w-full h-[90vh] max-h-[800px] flex flex-col lg:flex-row relative shadow-[0_0_80px_rgba(0,255,133,0.15)] overflow-hidden"
             >
               <button 
                 onClick={() => setSelectedLeader(null)}
-                className="absolute top-4 right-4 z-20 w-10 h-10 bg-black/50 hover:bg-black rounded-full flex items-center justify-center text-white transition-colors border border-slate-600"
+                className="absolute top-6 right-6 z-30 w-12 h-12 bg-black/40 hover:bg-black rounded-full flex items-center justify-center text-white transition-all border border-slate-600/50 hover:border-white hover:scale-110"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
               
-              <div className="w-full md:w-2/5 h-[400px] md:h-auto relative shrink-0">
-                <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-[#131A2E] via-transparent to-transparent z-10" />
+              {/* Left Side: Photo & Quick Stats (Fixed) */}
+              <div className="w-full lg:w-2/5 h-[300px] lg:h-full relative shrink-0">
+                <div className="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-[#131A2E] via-transparent to-transparent z-10" />
                 <Image src={selectedLeader.image} alt={selectedLeader.name} fill className="object-cover" />
-              </div>
-              
-              <div className="w-full md:w-3/5 p-8 md:p-12 flex flex-col justify-center relative z-10">
-                <h3 className="text-4xl md:text-5xl font-extrabold text-white font-display mb-2 tracking-tight">{selectedLeader.name}</h3>
-                <p className="text-[#00FF85] font-mono text-sm tracking-wide uppercase mb-8">{selectedLeader.role}</p>
                 
-                <p className="text-slate-300 text-lg leading-relaxed mb-10 font-light">
-                  {selectedLeader.bio}
-                </p>
-
-                <div className="space-y-5 mb-10">
-                  {selectedLeader.details?.map((detail: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-4">
-                      <div className="mt-2 w-2 h-2 rounded-full bg-[#0080FF] shrink-0 shadow-[0_0_10px_rgba(0,128,255,0.8)]" />
-                      <p className="text-slate-400 font-light">{detail}</p>
+                {/* Float Achievements overlay */}
+                <div className="absolute bottom-8 left-8 right-8 z-20 flex gap-3 overflow-x-auto hide-scrollbar">
+                  {selectedLeader.achievements?.map((ach: any, idx: number) => (
+                    <div key={idx} className="bg-black/60 backdrop-blur-md border border-slate-600/50 rounded-2xl p-4 shrink-0 shadow-xl min-w-[140px]">
+                      <p className="text-[#00FF85] font-mono text-[10px] tracking-widest uppercase mb-1">{ach.category}</p>
+                      <h4 className="text-white font-bold text-sm">{ach.title}</h4>
                     </div>
                   ))}
                 </div>
+              </div>
+              
+              {/* Right Side: Detailed Info (Scrollable) */}
+              <div className="w-full lg:w-3/5 p-8 md:p-14 flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="px-3 py-1 bg-[#0080FF]/10 border border-[#0080FF]/20 text-[#0080FF] rounded-full text-xs font-bold uppercase tracking-wider">
+                    {selectedLeader.role}
+                  </div>
+                </div>
+                
+                <h3 className="text-4xl md:text-6xl font-extrabold text-white font-display mb-8 tracking-tight">{selectedLeader.name}</h3>
+                
+                <div className="space-y-10">
+                  {/* Bio */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#F5C842]" /> Biography</h4>
+                    <p className="text-slate-300 text-lg leading-relaxed font-light">
+                      {selectedLeader.bio}
+                    </p>
+                  </div>
 
-                <div className="flex items-center gap-4">
-                  <Button className="bg-[#00FF85] text-black hover:bg-[#00FF85]/80 font-bold tracking-wide">
-                    Connect <ExternalLink className="w-4 h-4 ml-2" />
+                  {/* Academics Grid */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Award className="w-4 h-4 text-purple-400" /> Academic Background</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {selectedLeader.academics?.map((acad: any, idx: number) => (
+                        <div key={idx} className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-5 hover:bg-slate-800/50 transition-colors">
+                          <h5 className="text-white font-bold mb-1">{acad.degree}</h5>
+                          <p className="text-slate-400 text-sm font-light">{acad.institution}</p>
+                          <span className="inline-block mt-3 text-xs font-mono text-slate-500 bg-slate-900/50 px-2 py-1 rounded-md">{acad.year}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Additional Details */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Rocket className="w-4 h-4 text-[#00FF85]" /> Key Focus</h4>
+                    <div className="space-y-4">
+                      {selectedLeader.details?.map((detail: string, idx: number) => (
+                        <div key={idx} className="flex items-start gap-4 p-4 bg-gradient-to-r from-slate-800/30 to-transparent rounded-2xl border-l-2 border-[#0080FF]">
+                          <p className="text-slate-300 font-light text-sm">{detail}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-12 pt-8 border-t border-slate-800 flex items-center flex-wrap gap-4">
+                  <Button 
+                    className="bg-[#00FF85] text-black hover:bg-[#00FF85]/80 font-bold tracking-wide px-8 py-6 rounded-2xl"
+                    onClick={() => window.open(`https://${selectedLeader.social}`, '_blank')}
+                  >
+                    Connect on Social <ExternalLink className="w-4 h-4 ml-2" />
                   </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCopyLink}
+                    className="border-slate-700 bg-transparent text-slate-300 hover:text-white hover:bg-slate-800 px-8 py-6 rounded-2xl"
+                  >
+                    Copy Profile Link
+                  </Button>
+                  
+                  <div className="flex-1 hidden sm:block" />
+                  
+                  <div className="flex gap-2 ml-auto w-full sm:w-auto mt-4 sm:mt-0 justify-end">
+                    <button 
+                      onClick={handlePrev} 
+                      className="p-4 bg-slate-800/30 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-full text-slate-300 hover:text-white transition-all shadow-md"
+                      title="Previous Profile"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={handleNext} 
+                      className="p-4 bg-slate-800/30 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-full text-slate-300 hover:text-white transition-all shadow-md"
+                      title="Next Profile"
+                    >
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>

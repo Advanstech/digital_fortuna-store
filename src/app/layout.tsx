@@ -30,11 +30,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       suppressHydrationWarning
     >
       <body
-        className="min-h-full flex flex-col bg-[#0A0F1E] text-white"
+        className="min-h-screen flex flex-col bg-[#0A0F1E] text-white"
         suppressHydrationWarning
       >
         <LenisProvider>

@@ -20,6 +20,7 @@ import {
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isResetPassword, setIsResetPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -42,6 +43,32 @@ export default function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    if (isResetPassword) {
+      try {
+        const res = await fetch(`http://localhost:4000/v1/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim() }),
+        });
+        const resJson = await res.json();
+        const apiData = resJson.data || resJson;
+        
+        setIsLoading(false);
+        
+        if (res.ok) {
+          toast(apiData.message || "Password reset link sent to your email!", "success");
+          setIsResetPassword(false);
+        } else {
+          toast(apiData.message || "Failed to send reset link", "error");
+        }
+      } catch (err) {
+        setIsLoading(false);
+        toast("Network error. Please try again.", "error");
+      }
+      return;
+    }
+
     try {
       if (needs2FA) {
         // Handle 2FA Verification
@@ -149,64 +176,20 @@ export default function AuthPage() {
 
             <div className="text-center mb-8">
               <h1 className="text-3xl font-extrabold text-white font-display mb-2 tracking-tight">
-                {needs2FA ? "Two-Factor Auth" : (isLogin ? "Welcome Back" : "Create Account")}
+                {needs2FA ? "Two-Factor Auth" : (isResetPassword ? "Reset Password" : (isLogin ? "Welcome Back" : "Create Account"))}
               </h1>
               <p className="text-slate-400 text-sm font-light">
                 {needs2FA 
                   ? "Enter the 6-digit verification code from your Google or Microsoft Authenticator app."
-                  : (isLogin ? "Enter credentials to load your security clearance folder." : "Register to start listing or buying pre-vetted tech.")}
+                  : (isResetPassword 
+                      ? "Enter your email address and we'll send you a link to reset your password."
+                      : (isLogin ? "Enter credentials to load your security clearance folder." : "Register to start listing or buying pre-vetted tech."))}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               <AnimatePresence mode="wait">
-                {!needs2FA ? (
-                  <motion.div 
-                    key="normal-fields"
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    className="space-y-4"
-                  >
-                    <div className="space-y-2">
-                      <label className="text-slate-300 text-sm font-medium flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-[#0080FF]" /> Email Address
-                      </label>
-                      <input 
-                        required
-                        type="email" 
-                        className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white outline-none transition-all placeholder-slate-600"
-                        placeholder="founder@venture.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-slate-300 text-sm font-medium flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-[#0080FF]" /> Password
-                      </label>
-                      <div className="relative">
-                        <input
-                          required
-                          type={showPassword ? "text" : "password"}
-                          className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 pr-12 text-white outline-none transition-all placeholder-slate-600"
-                          placeholder="••••••••"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          aria-label={showPassword ? "Hide password" : "Show password"}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-                        >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
+                {needs2FA ? (
                   <motion.div 
                     key="2fa-fields"
                     initial={{ opacity: 0, y: 5 }}
@@ -229,6 +212,85 @@ export default function AuthPage() {
                       />
                     </div>
                   </motion.div>
+                ) : isResetPassword ? (
+                  <motion.div 
+                    key="reset-fields"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <label className="text-slate-300 text-sm font-medium flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-[#0080FF]" /> Email Address
+                      </label>
+                      <input 
+                        required
+                        type="email" 
+                        className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white outline-none transition-all placeholder-slate-600"
+                        placeholder="founder@venture.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="normal-fields"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <label className="text-slate-300 text-sm font-medium flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-[#0080FF]" /> Email Address
+                      </label>
+                      <input 
+                        required
+                        type="email" 
+                        className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 text-white outline-none transition-all placeholder-slate-600"
+                        placeholder="founder@venture.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-slate-300 text-sm font-medium flex items-center gap-2">
+                          <Lock className="w-4 h-4 text-[#0080FF]" /> Password
+                        </label>
+                        {isLogin && (
+                          <button 
+                            type="button" 
+                            onClick={() => setIsResetPassword(true)}
+                            className="text-xs text-[#0080FF] hover:text-[#00FF85] transition-colors"
+                          >
+                            Forgot password?
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          required
+                          type={showPassword ? "text" : "password"}
+                          className="w-full bg-[#0A0F1E] border border-slate-800 focus:border-[#00FF85] rounded-xl p-4 pr-12 text-white outline-none transition-all placeholder-slate-600"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
 
@@ -237,18 +299,19 @@ export default function AuthPage() {
                 disabled={isLoading}
                 className="bg-gradient-to-r from-[#00FF85] to-[#0080FF] text-black hover:opacity-95 py-6 text-lg font-bold mt-2 w-full rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00FF85]/10"
               >
-                {isLoading ? "AUTHORIZING..." : (needs2FA ? "VERIFY PASSKEY" : (isLogin ? "SIGN IN Clearance" : "GENERATE SECURE ACCOUNT"))}
+                {isLoading ? "AUTHORIZING..." : (needs2FA ? "VERIFY PASSKEY" : (isResetPassword ? "SEND RESET LINK" : (isLogin ? "SIGN IN Clearance" : "GENERATE SECURE ACCOUNT")))}
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </form>
 
-            {!needs2FA && (
+            {(!needs2FA && !isResetPassword) && (
               <div className="mt-8 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
                 <p className="text-slate-400">
                   {isLogin ? "Need credentials? " : "Already have clearance? "}
                   <button 
                     onClick={() => setIsLogin(!isLogin)} 
                     className="text-[#00FF85] font-semibold hover:underline"
+                    type="button"
                   >
                     {isLogin ? "Create account" : "Log in"}
                   </button>
@@ -256,6 +319,18 @@ export default function AuthPage() {
                 <Link href="/about" className="text-slate-500 hover:text-white flex items-center gap-1">
                   <HelpCircle className="w-4 h-4" /> Need assistance?
                 </Link>
+              </div>
+            )}
+            
+            {isResetPassword && (
+              <div className="mt-8 pt-6 border-t border-slate-800/80 flex justify-center text-sm">
+                <button 
+                  onClick={() => setIsResetPassword(false)} 
+                  className="text-slate-400 hover:text-white transition-colors flex items-center gap-2 font-semibold"
+                  type="button"
+                >
+                  <ArrowRight className="w-4 h-4 rotate-180" /> Back to Login
+                </button>
               </div>
             )}
           </motion.div>

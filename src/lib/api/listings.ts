@@ -43,14 +43,26 @@ export async function getListings(query: ListingQuery = {}): Promise<Paginated<a
     }
   });
 
-  const res = await fetch(`${API_BASE}/listings?${params.toString()}`);
-  if (!res.ok) throw new Error("Failed to fetch listings");
-  return unwrap(await res.json());
+  try {
+    const res = await fetch(`${API_BASE}/listings?${params.toString()}`);
+    if (!res.ok) {
+      console.warn(`[listings API] fetch returned ${res.status}`);
+      return { data: [], meta: { page: 1, limit: query.limit || 20, total: 0, totalPages: 1 } };
+    }
+    return unwrap(await res.json());
+  } catch (err) {
+    console.warn("[listings API] Network or fetch error:", err);
+    return { data: [], meta: { page: 1, limit: query.limit || 20, total: 0, totalPages: 1 } };
+  }
 }
 
 export async function getListing(slug: string): Promise<any> {
-  const res = await fetch(`${API_BASE}/listings/${slug}`);
-  if (!res.ok) throw new Error("Failed to fetch listing");
-  const json = await res.json();
-  return json.data ?? json;
+  try {
+    const res = await fetch(`${API_BASE}/listings/${slug}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data ?? json;
+  } catch {
+    return null;
+  }
 }

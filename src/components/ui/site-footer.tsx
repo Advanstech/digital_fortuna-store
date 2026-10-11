@@ -6,10 +6,18 @@ export function SiteFooter() {
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-6">
-              <span className="text-lg font-bold font-display text-white tracking-tight">
-                Digital Fortuna
-              </span>
+            <Link href="/" className="flex items-center gap-3 mb-6 group">
+              <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/30 shadow-[0_0_12px_rgba(0,255,133,0.15)] bg-[#0A0F1E] flex items-center justify-center p-0.5">
+                <img src="/images/logo.png" alt="Digital Fortuna Computing Logo" className="w-full h-full object-contain rounded-md" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-base font-bold font-display text-white tracking-tight leading-tight">
+                  Digital Fortuna
+                </span>
+                <span className="text-[9px] font-mono tracking-wider text-slate-400 uppercase -mt-0.5">
+                  Computing
+                </span>
+              </div>
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed">
               The premium marketplace for production-ready startups, full-stack tools, and digital businesses. Built for Africa and the world.
@@ -22,27 +30,27 @@ export function SiteFooter() {
               <li><Link href="/catalog" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Browse Marketplace</Link></li>
               <li><Link href="/sell" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">List a Business</Link></li>
               <li><Link href="/about" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">About Us</Link></li>
-              <li><Link href="#" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Pricing</Link></li>
-              <li><Link href="#" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Escrow Service</Link></li>
+              <li><Link href="/pricing" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Pricing</Link></li>
+              <li><Link href="/escrow" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Escrow Service</Link></li>
             </ul>
           </div>
           
           <div>
             <h4 className="text-white font-semibold mb-4">Resources</h4>
             <ul className="space-y-3">
-              <li><Link href="#" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Due Diligence Guide</Link></li>
-              <li><Link href="#" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Success Stories</Link></li>
-              <li><Link href="#" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Help Center</Link></li>
-              <li><Link href="#" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Blog</Link></li>
+              <li><Link href="/guide" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Due Diligence Guide</Link></li>
+              <li><Link href="/success" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Success Stories</Link></li>
+              <li><Link href="/help" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Help Center</Link></li>
+              <li><Link href="/blog" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Blog</Link></li>
             </ul>
           </div>
           
           <div>
             <h4 className="text-white font-semibold mb-4">Legal</h4>
             <ul className="space-y-3">
-              <li><Link href="#" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Terms of Service</Link></li>
-              <li><Link href="#" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Privacy Policy</Link></li>
-              <li><Link href="#" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Seller Agreement</Link></li>
+              <li><Link href="/terms" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Terms of Service</Link></li>
+              <li><Link href="/privacy" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/seller-agreement" className="text-sm text-slate-400 hover:text-[#00FF85] transition-colors">Seller Agreement</Link></li>
             </ul>
           </div>
         </div>
