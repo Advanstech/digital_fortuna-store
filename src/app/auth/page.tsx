@@ -15,11 +15,15 @@ import {
   CheckCircle,
   HelpCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Briefcase,
+  ShoppingBag,
+  ArrowLeft
 } from "lucide-react";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [signupRole, setSignupRole] = useState<"buyer" | "seller" | null>(null);
   const [isResetPassword, setIsResetPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -109,7 +113,7 @@ export default function AuthPage() {
       const res = await fetch(`${API_BASE}/auth/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: email.trim(), password, ...(!isLogin && { role: signupRole ?? "buyer" }) }),
       });
       const resJson = await res.json();
       const apiData = resJson.data || resJson;
@@ -195,18 +199,27 @@ export default function AuthPage() {
 
             <div className="text-center mb-8">
               <h1 className="text-3xl font-extrabold text-white font-display mb-2 tracking-tight">
-                {needs2FA ? "Two-Factor Auth" : (isResetPassword ? "Reset Password" : (isLogin ? "Welcome Back" : "Create Account"))}
+                {needs2FA ? "Two-Factor Auth" : (isResetPassword ? "Reset Password" : (isLogin ? "Welcome Back" : signupRole ? `Create ${signupRole === "seller" ? "Seller" : "Buyer"} Account` : "Join Digital Fortuna"))}
               </h1>
               <p className="text-slate-400 text-sm font-light">
                 {needs2FA 
                   ? "Enter the 6-digit verification code from your Google or Microsoft Authenticator app."
                   : (isResetPassword 
                       ? "Enter your email address and we'll send you a link to reset your password."
-                      : (isLogin ? "Enter credentials to load your security clearance folder." : "Register to start listing or buying pre-vetted tech."))}
+                      : (isLogin ? "Enter credentials to load your security clearance folder." : signupRole === "seller" ? "Create your seller account to list and manage your business." : signupRole === "buyer" ? "Create your buyer account to discover and acquire digital businesses." : "Choose how you want to use Digital Fortuna."))}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              {!isLogin && signupRole && !needs2FA && !isResetPassword && (
+                <button
+                  type="button"
+                  onClick={() => setSignupRole(null)}
+                  className="self-start inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Change account type
+                </button>
+              )}
               <AnimatePresence mode="wait">
                 {needs2FA ? (
                   <motion.div 
@@ -230,6 +243,41 @@ export default function AuthPage() {
                         onChange={(e) => setAuthCode(e.target.value)}
                       />
                     </div>
+                  </motion.div>
+                ) : !isLogin && !signupRole ? (
+                  <motion.div
+                    key="account-type"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="grid gap-4 sm:grid-cols-2"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSignupRole("buyer")}
+                      className="group rounded-2xl border border-slate-700 bg-[#0A0F1E]/70 p-5 text-left transition-all hover:border-[#0080FF] hover:bg-[#0080FF]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0080FF]"
+                    >
+                      <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#0080FF]/15 text-[#0080FF] group-hover:bg-[#0080FF]/25">
+                        <ShoppingBag className="h-5 w-5" />
+                      </span>
+                      <span className="block text-lg font-bold text-white">I want to buy</span>
+                      <span className="mt-2 block text-sm leading-relaxed text-slate-400">
+                        Discover vetted businesses, connect with sellers, and manage your acquisitions.
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSignupRole("seller")}
+                      className="group rounded-2xl border border-slate-700 bg-[#0A0F1E]/70 p-5 text-left transition-all hover:border-[#00FF85] hover:bg-[#00FF85]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF85]"
+                    >
+                      <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#00FF85]/15 text-[#00FF85] group-hover:bg-[#00FF85]/25">
+                        <Briefcase className="h-5 w-5" />
+                      </span>
+                      <span className="block text-lg font-bold text-white">I want to sell</span>
+                      <span className="mt-2 block text-sm leading-relaxed text-slate-400">
+                        Create a seller account to list your business and manage buyer activity.
+                      </span>
+                    </button>
                   </motion.div>
                 ) : isResetPassword ? (
                   <motion.div 
@@ -313,14 +361,16 @@ export default function AuthPage() {
                 )}
               </AnimatePresence>
 
-              <Button 
-                type="submit" 
-                disabled={isLoading}
-                className="bg-gradient-to-r from-[#00FF85] to-[#0080FF] text-black hover:opacity-95 py-6 text-lg font-bold mt-2 w-full rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00FF85]/10"
-              >
-                {isLoading ? "AUTHORIZING..." : (needs2FA ? "VERIFY PASSKEY" : (isResetPassword ? "SEND RESET LINK" : (isLogin ? "SIGN IN Clearance" : "GENERATE SECURE ACCOUNT")))}
-                <ArrowRight className="w-5 h-5" />
-              </Button>
+              {(isLogin || signupRole || needs2FA || isResetPassword) && (
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="bg-gradient-to-r from-[#00FF85] to-[#0080FF] text-black hover:opacity-95 py-6 text-lg font-bold mt-2 w-full rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#00FF85]/10"
+                >
+                  {isLoading ? "AUTHORIZING..." : (needs2FA ? "VERIFY PASSKEY" : (isResetPassword ? "SEND RESET LINK" : (isLogin ? "SIGN IN" : `CREATE ${signupRole === "seller" ? "SELLER" : "BUYER"} ACCOUNT`)))}
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              )}
             </form>
 
             {(!needs2FA && !isResetPassword) && (
@@ -328,7 +378,10 @@ export default function AuthPage() {
                 <p className="text-slate-400">
                   {isLogin ? "Need credentials? " : "Already have clearance? "}
                   <button 
-                    onClick={() => setIsLogin(!isLogin)} 
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setSignupRole(null);
+                    }} 
                     className="text-[#00FF85] font-semibold hover:underline"
                     type="button"
                   >
