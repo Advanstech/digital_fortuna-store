@@ -103,6 +103,7 @@ export default function AdminConsole() {
 
   // User detail drawer
   const [isUserDrawerOpen, setIsUserDrawerOpen] = useState(false);
+  const [isUserDrawerFullScreen, setIsUserDrawerFullScreen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [userDrawerTab, setUserDrawerTab] = useState<UserDrawerTab>("profile");
   const [loadingUserDetail, setLoadingUserDetail] = useState(false);
@@ -127,8 +128,18 @@ export default function AdminConsole() {
   const [isDrawerFullScreen, setIsDrawerFullScreen] = useState(false);
   const [isSavingListing, setIsSavingListing] = useState(false);
   const [listingForm, setListingForm] = useState<any>({});
+  const [activeListingModule, setActiveListingModule] = useState<"general" | "financials" | "compliance">("general");
 
-  
+  const scrollToListingModule = (module: "general" | "financials" | "compliance") => {
+    setActiveListingModule(module);
+    const section = document.getElementById(`listing-module-${module}`);
+    const scrollContainer = document.getElementById("listing-form-scroll");
+    if (!section || !scrollContainer) return;
+
+    const top = scrollContainer.scrollTop + section.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - 24;
+    scrollContainer.scrollTo({ top, behavior: "smooth" });
+  };
+
   // Logs state
   const [logsList, setLogsList] = useState(INITIAL_LOGS);
   const [logFilter, setLogFilter] = useState("ALL");
@@ -350,6 +361,7 @@ export default function AdminConsole() {
 
   const openUserDrawer = async (user: UserItem) => {
     setSelectedUser(user);
+    setIsUserDrawerFullScreen(false);
     setUserDrawerTab("profile");
     setIsEditingProfile(false);
     setActivityListingsPage(1);
@@ -964,7 +976,10 @@ export default function AdminConsole() {
                                   monthlyLicensePrice: item.monthlyLicensePrice,
                                   revenueMrr: item.revenueMrr,
                                   revenueArr: item.revenueArr,
+                                  country: item.country || "",
+                                  sellerDocuments: item.sellerDocuments || {},
                                 });
+                                setActiveListingModule("general");
                                 setIsListingDrawerOpen(true);
                               }}
                               className="text-left font-semibold text-white hover:text-[#00FF85] transition-colors flex items-center gap-2 group/btn cursor-pointer"
@@ -1018,7 +1033,10 @@ export default function AdminConsole() {
                                     monthlyLicensePrice: item.monthlyLicensePrice,
                                     revenueMrr: item.revenueMrr,
                                     revenueArr: item.revenueArr,
+                                    country: item.country || "",
+                                    sellerDocuments: item.sellerDocuments || {},
                                   });
+                                  setActiveListingModule("general");
                                   setIsListingDrawerOpen(true);
                                 }}
                               >
@@ -1532,7 +1550,9 @@ export default function AdminConsole() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-full sm:w-[600px] lg:w-[720px] bg-[#0A0F1E] border-l border-slate-800 z-50 flex flex-col shadow-2xl"
+              className={`fixed top-0 right-0 h-full bg-[#0A0F1E] border-l border-slate-800 z-50 flex flex-col shadow-2xl transition-all duration-300 ${
+                isUserDrawerFullScreen ? "w-full sm:w-[90vw] md:w-[85vw]" : "w-full sm:w-[600px] lg:w-[720px]"
+              }`}
             >
               {/* Drawer Header */}
               <div className="flex items-center justify-between p-5 border-b border-slate-800/80 bg-[#131A2E]/50 shrink-0">
@@ -1545,16 +1565,29 @@ export default function AdminConsole() {
                     <p className="text-slate-400 text-xs truncate">{selectedUser.email}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setIsUserDrawerOpen(false)}
-                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all shrink-0"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsUserDrawerFullScreen(!isUserDrawerFullScreen)}
+                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
+                    title={isUserDrawerFullScreen ? "Collapse Width" : "Expand Full Width"}
+                    aria-label={isUserDrawerFullScreen ? "Collapse user detail panel" : "Expand user detail panel"}
+                  >
+                    {isUserDrawerFullScreen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsUserDrawerOpen(false)}
+                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
+                    aria-label="Close user details"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Drawer Tabs */}
-              <div className="flex border-b border-slate-800 bg-[#0A0F1E] shrink-0">
+              <div className="flex overflow-x-auto border-b border-slate-800 bg-[#0A0F1E] shrink-0">
                 {([
                   { id: "profile" as UserDrawerTab, label: "Profile", icon: Users },
                   { id: "kyc" as UserDrawerTab, label: "KYC Data", icon: ShieldCheck },
@@ -1564,7 +1597,7 @@ export default function AdminConsole() {
                   <button
                     key={tab.id}
                     onClick={() => { setUserDrawerTab(tab.id); setIsEditingProfile(false); }}
-                    className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all ${
+                    className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all shrink-0 ${
                       userDrawerTab === tab.id
                         ? "border-[#0080FF] text-[#0080FF]"
                         : "border-transparent text-slate-400 hover:text-white"
@@ -1577,7 +1610,7 @@ export default function AdminConsole() {
               </div>
 
               {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+              <div className="flex-1 min-h-0 overflow-y-auto p-5 custom-scrollbar">
                 {loadingUserDetail && (
                   <div className="flex items-center justify-center py-12">
                     <RefreshCw className="w-6 h-6 text-[#0080FF] animate-spin" />
@@ -2099,29 +2132,47 @@ export default function AdminConsole() {
               </div>
 
               {/* Drawer Content Area */}
-              <div className="flex-1 overflow-hidden flex flex-col sm:flex-row bg-[#0A0F1E]">
-                {/* Left Sidebar (Only visible when Full Screen) */}
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col sm:flex-row bg-[#0A0F1E]">
+                {/* Configuration navigation stays visible while the form content scrolls */}
                 {isDrawerFullScreen && (
-                  <div className="w-64 border-r border-slate-800 bg-[#131A2E]/30 p-6 flex flex-col gap-1 overflow-y-auto shrink-0 hidden sm:flex">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">Configuration Modules</div>
-                    <button className="flex items-center gap-3 text-left px-3 py-2.5 bg-[#0080FF]/10 text-[#0080FF] rounded-xl text-sm font-semibold transition-colors">
-                      <Briefcase className="w-4 h-4" /> General Details
-                    </button>
-                    <button className="flex items-center gap-3 text-left px-3 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-xl text-sm font-medium transition-colors">
-                      <TrendingUp className="w-4 h-4" /> Financials & MRR
-                    </button>
-                    <button className="flex items-center gap-3 text-left px-3 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-xl text-sm font-medium transition-colors">
-                      <ShieldCheck className="w-4 h-4" /> Compliance & Legal
-                    </button>
-                  </div>
+                  <nav aria-label="Asset configuration modules" className="w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-800 bg-[#131A2E]/30 px-3 py-3 sm:p-6 flex flex-row sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto shrink-0">
+                    <div className="hidden sm:block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">Configuration Modules</div>
+                    {[
+                      { id: "general" as const, label: "General Details", icon: <Briefcase className="w-4 h-4" /> },
+                      { id: "financials" as const, label: "Financials & MRR", icon: <TrendingUp className="w-4 h-4" /> },
+                      { id: "compliance" as const, label: "Compliance & Legal", icon: <ShieldCheck className="w-4 h-4" /> },
+                    ].map((module) => (
+                      <button
+                        key={module.id}
+                        type="button"
+                        onClick={() => scrollToListingModule(module.id)}
+                        aria-current={activeListingModule === module.id ? "location" : undefined}
+                        className={`flex items-center gap-3 text-left px-3 py-2.5 rounded-xl text-sm whitespace-nowrap transition-colors shrink-0 ${activeListingModule === module.id ? "bg-[#0080FF]/10 text-[#0080FF] font-semibold" : "text-slate-400 hover:text-white hover:bg-slate-800/50 font-medium"}`}
+                      >
+                        {module.icon} {module.label}
+                      </button>
+                    ))}
+                  </nav>
                 )}
 
                 {/* Main Scrollable Form */}
-                <div className="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar">
+                <div
+                  id="listing-form-scroll"
+                  className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8 custom-scrollbar"
+                  onScroll={(event) => {
+                    const containerTop = event.currentTarget.getBoundingClientRect().top + 140;
+                    let currentModule: "general" | "financials" | "compliance" = "general";
+                    (["general", "financials", "compliance"] as const).forEach((module) => {
+                      const section = document.getElementById(`listing-module-${module}`);
+                      if (section && section.getBoundingClientRect().top <= containerTop) currentModule = module;
+                    });
+                    if (currentModule !== activeListingModule) setActiveListingModule(currentModule);
+                  }}
+                >
                   <div className={`space-y-8 ${isDrawerFullScreen ? "max-w-4xl mx-auto" : ""}`}>
                     
                     {/* General Details Module */}
-                    <div className="bg-[#131A2E]/50 rounded-2xl border border-slate-800/80 p-6 shadow-lg shadow-black/20">
+                    <div id="listing-module-general" className="scroll-mt-6 bg-[#131A2E]/50 rounded-2xl border border-slate-800/80 p-6 shadow-lg shadow-black/20">
                       <h4 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
                         <Briefcase className="w-4 h-4 text-purple-400" /> General Details
                       </h4>
@@ -2170,7 +2221,7 @@ export default function AdminConsole() {
                     </div>
 
                     {/* Financials & Valuations Module */}
-                    <div className="bg-[#131A2E]/50 rounded-2xl border border-slate-800/80 p-6 shadow-lg shadow-black/20">
+                    <div id="listing-module-financials" className="scroll-mt-6 bg-[#131A2E]/50 rounded-2xl border border-slate-800/80 p-6 shadow-lg shadow-black/20">
                       <h4 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
                         <TrendingUp className="w-4 h-4 text-emerald-400" /> Financials & Valuations
                       </h4>
@@ -2258,6 +2309,51 @@ export default function AdminConsole() {
                       </div>
                     </div>
 
+                    {/* Compliance & Legal Module */}
+                    <section id="listing-module-compliance" className="scroll-mt-6 bg-[#131A2E]/50 rounded-2xl border border-slate-800/80 p-6 shadow-lg shadow-black/20">
+                      <h4 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
+                        <ShieldCheck className="w-4 h-4 text-[#0080FF]" /> Compliance & Legal
+                      </h4>
+                      <div className="space-y-6">
+                        <div>
+                          <label htmlFor="asset-country" className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Country of Incorporation</label>
+                          <input
+                            id="asset-country"
+                            type="text"
+                            value={listingForm.country || ""}
+                            onChange={(e) => setListingForm({ ...listingForm, country: e.target.value })}
+                            className="w-full bg-[#0A0F1E] border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#0080FF] transition-all"
+                            placeholder="e.g. Ghana"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Due Diligence Documents</p>
+                          <p className="text-xs text-slate-500 mb-4">Add secure document links for buyer due diligence. Restrict access to authorized deal participants.</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {[
+                              { key: "pnl", label: "Profit & Loss statement" },
+                              { key: "analytics", label: "Analytics report" },
+                              { key: "revenueProof", label: "Revenue verification" },
+                            ].map((document) => (
+                              <div key={document.key}>
+                                <label htmlFor={`asset-document-${document.key}`} className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">{document.label}</label>
+                                <input
+                                  id={`asset-document-${document.key}`}
+                                  type="url"
+                                  value={listingForm.sellerDocuments?.[document.key] || ""}
+                                  onChange={(e) => setListingForm({
+                                    ...listingForm,
+                                    sellerDocuments: { ...(listingForm.sellerDocuments || {}), [document.key]: e.target.value || undefined },
+                                  })}
+                                  className="w-full bg-[#0A0F1E] border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#0080FF] transition-all"
+                                  placeholder="https://secure-document-link"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </section>
                   </div>
                 </div>
               </div>

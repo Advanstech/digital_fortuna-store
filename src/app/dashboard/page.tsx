@@ -36,6 +36,8 @@ import { useCurrency } from "@/lib/currency";
 
 type TabType = "overview" | "payments" | "adgenie" | "profile" | "settings" | "admin";
 
+const KYC_TERMS_VERSION = "1";
+
 const performanceData = [
   { name: 'Jan', value: 12000, views: 400 },
   { name: 'Feb', value: 19000, views: 800 },
@@ -66,6 +68,9 @@ export default function DashboardPage() {
   });
   const [kycSubmitting, setKycSubmitting] = useState(false);
   const [kycStep, setKycStep] = useState(1);
+  const [kycTermsChecked, setKycTermsChecked] = useState(false);
+  const [kycTermsAccepted, setKycTermsAccepted] = useState(false);
+  const [isAcceptingKycTerms, setIsAcceptingKycTerms] = useState(false);
 
   // Profile Update State
   const [profileForm, setProfileForm] = useState({ displayName: "", companyName: "" });
@@ -134,6 +139,11 @@ export default function DashboardPage() {
             const meData = rawJson.data || rawJson;
             setKycStatus(meData.kycStatus || "unverified");
             setKycRejectionReason(meData.kycRejectionReason || null);
+            const termsAccepted =
+              meData.kycData?.verificationTermsVersion === KYC_TERMS_VERSION &&
+              Boolean(meData.kycData?.verificationTermsAcceptedAt);
+            setKycTermsAccepted(termsAccepted);
+            if (termsAccepted) setKycStep(2);
             if (meData.fullLegalName || meData.nationality) {
               setKycForm(prev => ({
                 ...prev,
@@ -150,7 +160,7 @@ export default function DashboardPage() {
               userId: meData.id || ""
             });
             setProfileForm({
-              displayName: meData.displayName || "",
+              displayName: meData.displayName || meData.fullLegalName || "",
               companyName: meData.companyName || ""
             });
           }
@@ -238,7 +248,40 @@ export default function DashboardPage() {
     }
   };
 
+  const handleAcceptKycTerms = async () => {
+    if (!kycTermsChecked || isAcceptingKycTerms) return;
+    setIsAcceptingKycTerms(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API_BASE}/auth/kyc/accept-terms`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const responseJson = await res.json().catch(() => ({}));
+      const responseData = responseJson.data || responseJson;
+      if (res.ok) {
+        setKycTermsAccepted(true);
+        setKycStep(2);
+      } else if (res.status === 401) {
+        toast("Your session has expired. Redirecting to login...", "error");
+        localStorage.removeItem("access_token");
+        setTimeout(() => window.location.href = "/auth", 1500);
+      } else {
+        toast(responseData.message || "Could not save Terms of Verification acceptance.", "error");
+      }
+    } catch {
+      toast("Could not save Terms of Verification acceptance.", "error");
+    } finally {
+      setIsAcceptingKycTerms(false);
+    }
+  };
+
   const handleKycSubmit = async () => {
+    if (!kycTermsAccepted) {
+      toast("Accept the Terms of Verification before submitting KYC.", "error");
+      setKycStep(1);
+      return;
+    }
     if (!kycForm.fullLegalName || !kycForm.idNumber || !kycForm.documentUrl) {
       toast("Please provide your legal name, ID number, and upload your document.", "error");
       return;
@@ -301,7 +344,14 @@ export default function DashboardPage() {
     }
   };
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const submittedProfile = {
+      displayName: String(formData.get("displayName") || "").trim(),
+      companyName: String(formData.get("companyName") || "").trim(),
+    };
+    setProfileForm(submittedProfile);
     setIsSavingProfile(true);
     try {
       const token = localStorage.getItem("access_token");
@@ -311,16 +361,23 @@ export default function DashboardPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify(profileForm)
+        body: JSON.stringify({ ...submittedProfile, fullLegalName: submittedProfile.displayName })
       });
+      const responseJson = await res.json().catch(() => ({}));
+      const profile = responseJson.data || responseJson;
       if (res.ok) {
+        setProfileForm({
+          displayName: profile.displayName || profile.fullLegalName || profileForm.displayName,
+          companyName: profile.companyName ?? profileForm.companyName,
+        });
         toast("Profile updated successfully.", "success");
       } else if (res.status === 401) {
         toast("Your session has expired. Redirecting to login...", "error");
         localStorage.removeItem("access_token");
         setTimeout(() => window.location.href = "/auth", 1500);
       } else {
-        toast("Failed to update profile.", "error");
+        const errorMessage = Array.isArray(profile.message) ? profile.message.join(", ") : profile.message;
+        toast(errorMessage || "Failed to update profile.", "error");
       }
     } catch (e) {
       toast("Error updating profile.", "error");
@@ -815,6 +872,7 @@ export default function DashboardPage() {
                   
                   <div className="bg-[#131A2E]/50 border border-slate-800 rounded-2xl p-8">
                     <h3 className="text-lg font-bold text-white mb-6 border-b border-slate-800 pb-4">Personal Information</h3>
+                    <form onSubmit={handleSaveProfile}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Email Address</label>
@@ -827,8 +885,10 @@ export default function DashboardPage() {
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Name</label>
                         <input 
-                          type="text" 
-                          placeholder="Enter your legal name" 
+                          type="text"
+                          name="displayName"
+                          autoComplete="name"
+                          placeholder="Enter your legal name"
                           value={profileForm.displayName}
                           onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}
                           className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#00FF85] rounded-xl p-3 text-white outline-none" 
@@ -837,8 +897,10 @@ export default function DashboardPage() {
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Company / Entity</label>
                         <input 
-                          type="text" 
-                          placeholder="e.g. Acme Holdings LLC" 
+                          type="text"
+                          name="companyName"
+                          autoComplete="organization"
+                          placeholder="e.g. Acme Holdings LLC"
                           value={profileForm.companyName}
                           onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
                           className="w-full bg-[#0A0F1E] border border-slate-700 focus:border-[#00FF85] rounded-xl p-3 text-white outline-none" 
@@ -846,8 +908,8 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="mt-6 flex justify-end">
-                      <Button 
-                        onClick={handleSaveProfile} 
+                      <Button
+                        type="submit"
                         disabled={isSavingProfile}
                         className="bg-[#00FF85] text-black hover:bg-[#00FF85]/80"
                       >
@@ -856,6 +918,7 @@ export default function DashboardPage() {
                         ) : "Save Changes"}
                       </Button>
                     </div>
+                    </form>
                   </div>
 
                   <div className="bg-[#131A2E]/50 border border-slate-800 rounded-2xl p-8">
@@ -915,7 +978,7 @@ export default function DashboardPage() {
                         )}
                         <Button
                           variant="outline"
-                          onClick={() => { setKycStep(1); setKycStatus("unverified"); }}
+                          onClick={() => { setKycStep(kycTermsAccepted ? 2 : 1); setKycStatus("unverified"); }}
                           className="mt-4 border-red-500/40 text-red-300 hover:bg-red-500/10 text-xs"
                         >
                           Resubmit Verification
@@ -960,15 +1023,22 @@ export default function DashboardPage() {
                                 By proceeding, you agree that Digital Fortuna Computing will securely process your identity documents. Your data will be encrypted at rest and will only be shared with our regulated financial partners for verification purposes.
                               </p>
                               <label className="flex items-center gap-3 cursor-pointer group">
-                                <div className="w-5 h-5 rounded border border-slate-600 bg-slate-800 group-hover:border-[#00FF85] flex items-center justify-center transition-colors">
-                                  <div className="w-3 h-3 bg-[#00FF85] rounded-sm opacity-100" />
-                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={kycTermsChecked}
+                                  onChange={(e) => setKycTermsChecked(e.target.checked)}
+                                  className="h-5 w-5 accent-[#00FF85]"
+                                />
                                 <span className="text-sm text-slate-300">I agree to the Terms of Verification and Privacy Policy</span>
                               </label>
                             </div>
                             <div className="flex justify-end">
-                              <Button onClick={() => setKycStep(2)} className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white">
-                                Agree & Continue
+                              <Button
+                                onClick={handleAcceptKycTerms}
+                                disabled={!kycTermsChecked || isAcceptingKycTerms}
+                                className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white"
+                              >
+                                {isAcceptingKycTerms ? "Saving..." : "Agree & Continue"}
                               </Button>
                             </div>
                           </motion.div>
@@ -1049,10 +1119,7 @@ export default function DashboardPage() {
                                 />
                               </div>
                             </div>
-                            <div className="flex justify-between pt-2">
-                              <Button variant="outline" onClick={() => setKycStep(1)} className="border-slate-700 bg-transparent hover:bg-slate-800 text-slate-300 hover:text-white">
-                                Back
-                              </Button>
+                            <div className="flex justify-end pt-2">
                               <Button onClick={() => setKycStep(3)} disabled={!kycForm.idNumber || !kycForm.fullLegalName} className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white">
                                 Continue to Upload
                               </Button>
