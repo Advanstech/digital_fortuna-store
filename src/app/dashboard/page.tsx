@@ -75,6 +75,10 @@ export default function DashboardPage() {
   // Profile Update State
   const [profileForm, setProfileForm] = useState({ displayName: "", companyName: "" });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Recharts ResponsiveContainer needs a measured DOM size; defer render until mount
+  // to avoid the static-generation width(-1)/height(-1) warning.
+  const [chartMounted, setChartMounted] = useState(false);
   
   // Payment State
   const [payments, setPayments] = useState<any[]>([]);
@@ -106,6 +110,10 @@ export default function DashboardPage() {
       window.history.replaceState(null, '', `#${activeTab}`);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    setChartMounted(true);
+  }, []);
 
   useEffect(() => {
     const initDashboard = async () => {
@@ -144,16 +152,18 @@ export default function DashboardPage() {
               Boolean(meData.kycData?.verificationTermsAcceptedAt);
             setKycTermsAccepted(termsAccepted);
             if (termsAccepted) setKycStep(2);
-            if (meData.fullLegalName || meData.nationality) {
-              setKycForm(prev => ({
-                ...prev,
-                fullLegalName: meData.fullLegalName || prev.fullLegalName,
-                nationality: meData.nationality || prev.nationality,
-                dateOfBirth: meData.dateOfBirth || prev.dateOfBirth,
-                country: meData.country || prev.country,
-                phone: meData.phone || prev.phone,
-              }));
-            }
+            const kycFromData = meData.kycData || {};
+            setKycForm(prev => ({
+              ...prev,
+              idType: kycFromData.idType || prev.idType,
+              idNumber: kycFromData.idNumber || prev.idNumber,
+              documentUrl: kycFromData.documentUrl || prev.documentUrl,
+              fullLegalName: meData.fullLegalName || kycFromData.fullLegalName || prev.fullLegalName,
+              nationality: meData.nationality || kycFromData.nationality || prev.nationality,
+              dateOfBirth: meData.dateOfBirth || kycFromData.dateOfBirth || prev.dateOfBirth,
+              country: meData.country || kycFromData.country || prev.country,
+              phone: meData.phone || kycFromData.phone || prev.phone,
+            }));
             setUserContext({
               email: meData.email || "",
               role: meData.role || "buyer",
@@ -300,6 +310,9 @@ export default function DashboardPage() {
       if (res.ok) {
         toast("KYC submitted successfully. Awaiting review.", "success");
         setKycStatus("pending");
+        if (kycForm.fullLegalName) {
+          setProfileForm(prev => ({ ...prev, displayName: kycForm.fullLegalName }));
+        }
       } else if (res.status === 401) {
         toast("Your session has expired. Redirecting to login...", "error");
         localStorage.removeItem("access_token");
@@ -351,25 +364,28 @@ export default function DashboardPage() {
       displayName: String(formData.get("displayName") || "").trim(),
       companyName: String(formData.get("companyName") || "").trim(),
     };
-    setProfileForm(submittedProfile);
     setIsSavingProfile(true);
     try {
       const token = localStorage.getItem("access_token");
+      const payload: Record<string, string> = { ...submittedProfile };
+      if (submittedProfile.displayName) payload.fullLegalName = submittedProfile.displayName;
       const res = await fetch(`${API_BASE}/auth/profile`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ ...submittedProfile, fullLegalName: submittedProfile.displayName })
+        body: JSON.stringify(payload)
       });
       const responseJson = await res.json().catch(() => ({}));
       const profile = responseJson.data || responseJson;
       if (res.ok) {
-        setProfileForm({
-          displayName: profile.displayName || profile.fullLegalName || profileForm.displayName,
-          companyName: profile.companyName ?? profileForm.companyName,
-        });
+        const displayName = profile.displayName || profile.fullLegalName || submittedProfile.displayName;
+        const companyName = profile.companyName ?? submittedProfile.companyName;
+        setProfileForm({ displayName, companyName });
+        if (displayName) {
+          setKycForm(prev => ({ ...prev, fullLegalName: displayName }));
+        }
         toast("Profile updated successfully.", "success");
       } else if (res.status === 401) {
         toast("Your session has expired. Redirecting to login...", "error");
@@ -390,32 +406,32 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-[#0A0F1E] pt-24 pb-12">
       {/* Top Banner / Breadcrumb Area */}
       <div className="w-full border-b border-slate-800/80 bg-[#131A2E]/50 backdrop-blur-xl sticky top-16 z-30">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <UserCircle className="w-8 h-8 text-[#00FF85]" />
-            <div>
-              <h2 className="text-white font-bold font-display leading-tight">{userContext?.email || "Loading..."}</h2>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 sm:py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <UserCircle className="w-8 h-8 text-[#00FF85] shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-white font-bold font-display leading-tight truncate">{userContext?.email || "Loading..."}</h2>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
                 <span className="uppercase tracking-wider font-semibold text-emerald-400">
                   {userContext?.role?.replace('_', ' ') || "USER"} ACCOUNT
                 </span>
                 {isAdmin && (
-                  <span className="inline-flex items-center gap-1 bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-bold tracking-wide">
-                    <ShieldCheck className="w-3 h-3 text-purple-400" /> ROOT / SUPER ADMIN
+                  <span className="inline-flex items-center gap-1 bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-bold tracking-wide whitespace-nowrap">
+                    <ShieldCheck className="w-3 h-3 text-purple-400" /> ADMIN
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex w-full sm:w-auto gap-2 sm:gap-3">
             {isAdmin && (
-              <Link href="/admin">
-                <Button className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 border border-purple-400/40 text-xs h-9 px-4 flex items-center gap-2 font-bold rounded-lg transition-all">
+              <Link href="/admin" className="flex-1 sm:flex-none">
+                <Button className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 border border-purple-400/40 text-xs h-9 px-3 sm:px-4 flex items-center justify-center gap-2 font-bold rounded-lg transition-all">
                   <ShieldCheck className="w-4 h-4 text-purple-200" /> Admin Console
                 </Button>
               </Link>
             )}
-            <Button onClick={handleLogout} className="bg-slate-800 hover:bg-slate-700 text-white h-9 px-4 text-xs font-semibold rounded-md flex items-center gap-2">
+            <Button onClick={handleLogout} className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-white h-9 px-4 text-xs font-semibold rounded-md flex items-center justify-center gap-2">
               <LogOut className="w-3.5 h-3.5" /> Logout
             </Button>
           </div>
@@ -426,13 +442,13 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* LEFT COLUMN: SCROLL & STICKY NAVIGATION */}
-          <div className="lg:col-span-3 lg:sticky lg:top-[140px] space-y-2">
-            <nav className="flex flex-col gap-1 bg-[#131A2E]/40 border border-slate-800/80 rounded-2xl p-4 backdrop-blur-md">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 px-3">Main Menu</h3>
+          <div className="min-w-0 lg:col-span-3 lg:sticky lg:top-[140px] space-y-2">
+            <nav className="flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-visible no-scrollbar bg-[#131A2E]/40 border border-slate-800/80 rounded-2xl p-2 sm:p-4 backdrop-blur-md">
+              <h3 className="hidden lg:block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 px-3">Main Menu</h3>
               
               <button 
                 onClick={() => setActiveTab("overview")}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                className={`flex shrink-0 lg:shrink items-center gap-2 lg:gap-3 whitespace-nowrap px-3 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-medium ${
                   activeTab === "overview" ? "bg-[#00FF85]/10 text-[#00FF85]" : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                 }`}
               >
@@ -441,7 +457,7 @@ export default function DashboardPage() {
 
               <button 
                 onClick={() => { setActiveTab("payments"); loadPayments(); }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                className={`flex shrink-0 lg:shrink items-center gap-2 lg:gap-3 whitespace-nowrap px-3 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-medium ${
                   activeTab === "payments" ? "bg-[#00FF85]/10 text-[#00FF85]" : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                 }`}
               >
@@ -450,7 +466,7 @@ export default function DashboardPage() {
 
               <button 
                 onClick={() => setActiveTab("adgenie")}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                className={`flex shrink-0 lg:shrink items-center gap-2 lg:gap-3 whitespace-nowrap px-3 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-medium ${
                   activeTab === "adgenie" ? "bg-[#0080FF]/10 text-[#0080FF]" : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                 }`}
               >
@@ -459,7 +475,7 @@ export default function DashboardPage() {
               
               <button 
                 onClick={() => setActiveTab("profile")}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                className={`flex shrink-0 lg:shrink items-center gap-2 lg:gap-3 whitespace-nowrap px-3 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-medium ${
                   activeTab === "profile" ? "bg-[#00FF85]/10 text-[#00FF85]" : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                 }`}
               >
@@ -468,7 +484,7 @@ export default function DashboardPage() {
               
               <button 
                 onClick={() => setActiveTab("settings")}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                className={`flex shrink-0 lg:shrink items-center gap-2 lg:gap-3 whitespace-nowrap px-3 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-medium ${
                   activeTab === "settings" ? "bg-[#00FF85]/10 text-[#00FF85]" : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                 }`}
               >
@@ -477,13 +493,13 @@ export default function DashboardPage() {
 
               {isAdmin && (
                 <>
-                  <div className="my-2 border-t border-slate-800/80" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-2 px-3 flex items-center gap-1.5 font-mono">
+                  <div className="hidden lg:block my-2 border-t border-slate-800/80" />
+                  <h3 className="hidden lg:flex text-xs font-bold uppercase tracking-wider text-purple-400 mb-2 px-3 items-center gap-1.5 font-mono">
                     <ShieldAlert className="w-3.5 h-3.5 text-purple-400" /> Administration
                   </h3>
-                  <Link href="/admin">
+                  <Link href="/admin" className="w-max lg:w-full flex-none lg:flex-auto">
                     <button 
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-semibold bg-purple-500/15 text-purple-200 border border-purple-500/30 hover:bg-purple-500/25 hover:text-white shadow-lg shadow-purple-900/20 group"
+                      className="w-full flex items-center gap-3 whitespace-nowrap px-3 py-2.5 rounded-xl transition-all text-sm font-semibold bg-purple-500/15 text-purple-200 border border-purple-500/30 hover:bg-purple-500/25 hover:text-white shadow-lg shadow-purple-900/20 group"
                     >
                       <ShieldCheck className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" /> Admin Console <ChevronRight className="w-4 h-4 ml-auto text-purple-400" />
                     </button>
@@ -492,7 +508,7 @@ export default function DashboardPage() {
               )}
             </nav>
             
-            <div className="bg-gradient-to-tr from-slate-900 to-[#131A2E] border border-slate-800 rounded-2xl p-5 relative overflow-hidden mt-6">
+            <div className="hidden lg:block bg-gradient-to-tr from-slate-900 to-[#131A2E] border border-slate-800 rounded-2xl p-5 relative overflow-hidden mt-6">
               <div className="absolute top-0 right-0 w-32 h-32 bg-[#00FF85]/5 rounded-full blur-2xl" />
               <h4 className="text-white font-bold text-sm mb-1">Need Assistance?</h4>
               <p className="text-slate-400 text-xs leading-relaxed mb-4">Connect with your dedicated Fortuna broker for M&A strategy.</p>
@@ -507,7 +523,7 @@ export default function DashboardPage() {
           </div>
 
           {/* RIGHT COLUMN: DYNAMIC CONTENT AREA */}
-          <div className="lg:col-span-9 min-h-[600px]">
+          <div className="min-w-0 lg:col-span-9 min-h-[400px] lg:min-h-[600px]">
             <AnimatePresence mode="wait">
               
               {/* TAB: OVERVIEW */}
@@ -517,18 +533,18 @@ export default function DashboardPage() {
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                   className="space-y-8"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-3xl font-bold text-white font-display">Command Center</h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="min-w-0">
+                      <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">Command Center</h2>
                       <p className="text-slate-400 mt-1">Your acquisition portfolio, performance parameters, and active deal flow.</p>
                     </div>
                     <Link href="/catalog">
-                      <Button className="bg-[#00FF85] text-black font-semibold hover:bg-[#00FF85]/80 shadow-lg shadow-[#00FF85]/20">Browse Market</Button>
+                      <Button className="w-full sm:w-auto bg-[#00FF85] text-black font-semibold hover:bg-[#00FF85]/80 shadow-lg shadow-[#00FF85]/20">Browse Market</Button>
                     </Link>
                   </div>
 
                   {/* Top Metric Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                     <div className="bg-gradient-to-br from-[#131A2E] to-[#0A0F1E] border border-slate-800 rounded-2xl p-6 relative overflow-hidden shadow-xl">
                       <div className="absolute top-0 right-0 p-4 opacity-10"><TrendingUp className="w-16 h-16" /></div>
                       <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Estimated Portfolio Value</span>
@@ -551,35 +567,39 @@ export default function DashboardPage() {
 
                   {/* Pictograph / Performance Chart */}
                   <div className="bg-[#131A2E]/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-white font-bold flex items-center gap-2"><BarChart3 className="w-5 h-5 text-[#0080FF]" /> Portfolio Performance (Value)</h3>
-                      <select className="bg-[#0A0F1E] border border-slate-700 text-xs text-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-[#0080FF]">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                      <h3 className="text-white font-bold flex items-center gap-2"><BarChart3 className="w-5 h-5 text-[#0080FF] shrink-0" /> Portfolio Performance (Value)</h3>
+                      <select className="self-start sm:self-auto bg-[#0A0F1E] border border-slate-700 text-xs text-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-[#0080FF]">
                         <option>Last 6 Months</option>
                         <option>Year to Date</option>
                         <option>All Time</option>
                       </select>
                     </div>
-                    <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={performanceData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#00FF85" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#00FF85" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
-                          <XAxis dataKey="name" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#475569" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val / 1000}k`} />
-                          <RechartsTooltip 
-                            contentStyle={{ backgroundColor: '#0A0F1E', borderColor: '#1E293B', borderRadius: '12px' }}
-                            itemStyle={{ color: '#00FF85', fontWeight: 'bold' }}
-                            labelStyle={{ color: '#94A3B8' }}
-                            formatter={(value: any) => [`$${value.toLocaleString()}`, 'Value']}
-                          />
-                          <Area type="monotone" dataKey="value" stroke="#00FF85" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
+                    <div className="h-64 w-full min-w-0">
+                      {chartMounted ? (
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                          <AreaChart data={performanceData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#00FF85" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#00FF85" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
+                            <XAxis dataKey="name" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#475569" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val / 1000}k`} />
+                            <RechartsTooltip
+                              contentStyle={{ backgroundColor: '#0A0F1E', borderColor: '#1E293B', borderRadius: '12px' }}
+                              itemStyle={{ color: '#00FF85', fontWeight: 'bold' }}
+                              labelStyle={{ color: '#94A3B8' }}
+                              formatter={(value: any) => [`$${value.toLocaleString()}`, 'Value']}
+                            />
+                            <Area type="monotone" dataKey="value" stroke="#00FF85" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full w-full bg-[#0A0F1E] animate-pulse rounded-xl" />
+                      )}
                     </div>
                   </div>
                   
@@ -655,7 +675,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-3xl font-bold text-white font-display">Payments & Fees</h2>
+                      <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">Payments & Fees</h2>
                       <p className="text-slate-400 text-sm mt-1">GTPay transactions and marketplace fees</p>
                     </div>
                     <Link href="/escrow">
@@ -785,7 +805,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-3xl font-bold text-white font-display flex items-center gap-2">
+                      <h2 className="text-2xl sm:text-3xl font-bold text-white font-display flex items-center gap-2">
                         <Sparkles className="w-8 h-8 text-[#0080FF]" /> AdGenie Creator
                       </h2>
                       <p className="text-slate-400 mt-2">Generate hyper-local AI ads optimized for WhatsApp and African markets.</p>
@@ -868,7 +888,7 @@ export default function DashboardPage() {
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                   className="space-y-6"
                 >
-                  <h2 className="text-3xl font-bold text-white font-display mb-6 capitalize">{activeTab} Configuration</h2>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white font-display mb-6 capitalize">{activeTab} Configuration</h2>
                   
                   <div className="bg-[#131A2E]/50 border border-slate-800 rounded-2xl p-8">
                     <h3 className="text-lg font-bold text-white mb-6 border-b border-slate-800 pb-4">Personal Information</h3>

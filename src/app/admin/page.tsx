@@ -579,7 +579,7 @@ export default function AdminConsole() {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed inset-y-0 left-0 w-72 bg-[#0A0F1E] border-r border-slate-800 z-50 flex flex-col lg:hidden pt-20"
+              className="fixed inset-y-0 left-0 w-72 max-w-[calc(100vw-1rem)] bg-[#0A0F1E] border-r border-slate-800 z-50 flex flex-col lg:hidden pt-20"
             >
               <div className="h-14 flex items-center justify-between px-5 border-b border-slate-800/80">
                 <div className="flex items-center gap-2.5">
@@ -763,8 +763,8 @@ export default function AdminConsole() {
       <div className="flex-1 flex flex-col min-w-0 h-[calc(100vh-5rem)] overflow-hidden">
         
         {/* TOP BAR */}
-        <header className="h-14 border-b border-slate-800/80 bg-[#0A0F1E] flex items-center justify-between px-4 lg:px-6 flex-shrink-0 z-10">
-          <div className="flex items-center gap-3">
+        <header className="h-14 border-b border-slate-800/80 bg-[#0A0F1E] flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 flex-shrink-0 z-10">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             {/* Mobile menu trigger */}
             <button
               onClick={() => setIsMobileOpen(!isMobileOpen)}
@@ -796,32 +796,33 @@ export default function AdminConsole() {
 
             <div className="w-px h-5 bg-slate-800 hidden lg:block" />
 
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-1 sm:gap-2 text-sm min-w-0">
               <span className="text-slate-500 font-mono text-xs hidden sm:inline">ENVIRONMENT:</span>
               <span className="text-emerald-400 font-mono bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded text-[11px] font-bold">
                 PRODUCTION
               </span>
-              <span className="text-purple-400 font-mono bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded text-[11px] font-bold ml-1">
-                ROOT / SUPER ADMIN
+              <span className="text-purple-400 font-mono bg-purple-500/10 border border-purple-500/20 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold sm:ml-1 whitespace-nowrap">
+                <span className="sm:hidden">ADMIN</span>
+                <span className="hidden sm:inline">ROOT / SUPER ADMIN</span>
               </span>
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+          <div className="flex items-center gap-1 sm:gap-4 shrink-0">
+            <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-slate-400 hover:text-white">
               <Settings className="w-5 h-5" />
             </Button>
-            <div className="w-px h-6 bg-slate-800" />
-            <span className="text-xs font-semibold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+            <div className="hidden sm:block w-px h-6 bg-slate-800" />
+            <span className="hidden sm:inline-flex text-xs font-semibold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2.5 py-1 rounded-full items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-purple-400" /> Root Session
             </span>
           </div>
         </header>
 
         {/* SCROLLABLE CONTENT */}
-        <main data-lenis-prevent className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 relative">
+        <main data-lenis-prevent className="flex-1 min-w-0 overflow-y-auto p-3 sm:p-6 lg:p-10 relative">
           {/* Ambient Glow */}
-          <div className="absolute top-[-20%] left-[20%] w-[600px] h-[600px] bg-[#00FF85]/5 rounded-full blur-[140px] pointer-events-none" />
+          <div className="absolute top-[-20%] left-[20%] w-[600px] h-[600px] max-w-full bg-[#00FF85]/5 rounded-full blur-[140px] pointer-events-none" />
 
           <AnimatePresence mode="wait">
             
@@ -833,12 +834,12 @@ export default function AdminConsole() {
                 className="space-y-8"
               >
                 <div>
-                  <h2 className="text-3xl font-bold text-white font-display">Global Operations Overview</h2>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">Global Operations Overview</h2>
                   <p className="text-slate-400 mt-1">Real-time marketplace telemetry and metrics.</p>
                 </div>
 
                 {/* Top Level Metric Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
                   <div className="bg-[#0A0F1E]/80 border border-slate-800 rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm">
                     <div className="absolute top-0 right-0 p-4 opacity-10"><CreditCard className="w-16 h-16" /></div>
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Total GMV</span>
@@ -868,7 +869,7 @@ export default function AdminConsole() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-8">
                   <div className="bg-[#0A0F1E]/50 border border-slate-800 rounded-2xl p-6">
                     <h3 className="text-white font-bold mb-6 flex items-center gap-2"><Activity className="w-4 h-4 text-purple-400" /> Platform Health</h3>
                     <div className="space-y-6">
@@ -933,21 +934,21 @@ export default function AdminConsole() {
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                 className="space-y-6"
               >
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                   <div>
-                    <h2 className="text-3xl font-bold text-white font-display">Asset & Project Management</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">Asset & Project Management</h2>
                     <p className="text-slate-400 mt-1">Review, approve, and moderate marketplace assets and projects.</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button onClick={() => fetchListings()} variant="outline" size="sm" className="bg-[#131A2E] border-slate-700 text-slate-300 text-xs">
+                  <div className="flex w-full sm:w-auto gap-2">
+                    <Button onClick={() => fetchListings()} variant="outline" size="sm" className="flex-1 sm:flex-none bg-[#131A2E] border-slate-700 text-slate-300 text-xs">
                       <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loadingListings ? 'animate-spin' : ''}`} /> Refresh
                     </Button>
-                    <Button className="bg-[#0080FF] hover:bg-[#0080FF]/80 text-white">Export CSV</Button>
+                    <Button className="flex-1 sm:flex-none bg-[#0080FF] hover:bg-[#0080FF]/80 text-white">Export CSV</Button>
                   </div>
                 </div>
 
-                <div className="bg-[#0A0F1E] border border-slate-800 rounded-2xl overflow-hidden">
-                  <table className="w-full text-left text-sm">
+                <div className="bg-[#0A0F1E] border border-slate-800 rounded-2xl overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-sm">
                     <thead className="bg-[#131A2E] text-slate-400 border-b border-slate-800 uppercase tracking-wider text-xs font-semibold">
                       <tr>
                         <th className="px-6 py-4">Asset Name</th>
@@ -1093,7 +1094,7 @@ export default function AdminConsole() {
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
-                    <h2 className="text-3xl font-bold text-white font-display">Escrow Vault & Settlement</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">Escrow Vault & Settlement</h2>
                     <p className="text-slate-400 mt-1">Regulated multi-currency escrow with milestone release controls.</p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -1103,8 +1104,8 @@ export default function AdminConsole() {
                   </div>
                 </div>
 
-                <div className="bg-[#0A0F1E] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                  <table className="w-full text-left text-sm">
+                <div className="bg-[#0A0F1E] border border-slate-800 rounded-2xl overflow-x-auto shadow-xl">
+                  <table className="w-full min-w-[800px] text-left text-sm">
                     <thead className="bg-[#131A2E] text-slate-400 border-b border-slate-800 uppercase tracking-wider text-xs font-semibold">
                       <tr>
                         <th className="px-6 py-4">Deal / Asset</th>
@@ -1165,12 +1166,12 @@ export default function AdminConsole() {
 
                 {/* GTPay Transaction Ledger */}
                 <div className="mt-8">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                     <div>
-                      <h3 className="text-xl font-bold text-white">GTPay Transaction Ledger</h3>
+                      <h3 className="text-lg sm:text-xl font-bold text-white">GTPay Transaction Ledger</h3>
                       <p className="text-slate-400 text-xs mt-0.5">All payments processed via GTBank Partner API</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                       {adminMetrics?.summary && (
                         <>
                           <span className="bg-[#0080FF]/10 border border-[#0080FF]/20 text-[#0080FF] text-xs px-3 py-1.5 rounded-full font-mono">
@@ -1184,14 +1185,14 @@ export default function AdminConsole() {
                     </div>
                   </div>
 
-                  <div className="bg-[#0A0F1E] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                  <div className="bg-[#0A0F1E] border border-slate-800 rounded-2xl overflow-x-auto shadow-xl">
                     {gtpayLoading ? (
                       <div className="p-8 text-center text-slate-500 text-sm">Loading transactions...</div>
                     ) : gtpayTransactions.length === 0 ? (
                       <div className="p-8 text-center text-slate-500 text-sm">No GTPay transactions yet</div>
                     ) : (
                       <>
-                        <table className="w-full text-left text-sm">
+                        <table className="w-full min-w-[720px] text-left text-sm">
                           <thead className="bg-[#131A2E] text-slate-400 border-b border-slate-800 uppercase tracking-wider text-xs font-semibold">
                             <tr>
                               <th className="px-5 py-3">Ref / User</th>
@@ -1256,7 +1257,7 @@ export default function AdminConsole() {
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
-                    <h2 className="text-3xl font-bold text-white font-display">User Base & KYC Compliance</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">User Base & KYC Compliance</h2>
                     <p className="text-slate-400 mt-1">Review identity credentials, manage profiles, and handle verification documents.</p>
                   </div>
                   <div className="flex gap-2">
@@ -1320,7 +1321,7 @@ export default function AdminConsole() {
                     <select
                       value={userRoleFilter}
                       onChange={(e) => { setUserRoleFilter(e.target.value); setUsersPage(1); }}
-                      className="bg-[#131A2E] border border-slate-700/60 rounded-lg px-2 py-1.5 text-xs text-white outline-none appearance-none cursor-pointer"
+                      className="flex-1 min-w-0 bg-[#131A2E] border border-slate-700/60 rounded-lg px-2 py-1.5 text-xs text-white outline-none appearance-none cursor-pointer"
                     >
                       <option value="all">All Roles</option>
                       <option value="buyer">Buyer</option>
@@ -1332,7 +1333,7 @@ export default function AdminConsole() {
                     <select
                       value={userKycFilter}
                       onChange={(e) => { setUserKycFilter(e.target.value); setUsersPage(1); }}
-                      className="bg-[#131A2E] border border-slate-700/60 rounded-lg px-2 py-1.5 text-xs text-white outline-none appearance-none cursor-pointer"
+                      className="flex-1 min-w-0 bg-[#131A2E] border border-slate-700/60 rounded-lg px-2 py-1.5 text-xs text-white outline-none appearance-none cursor-pointer"
                     >
                       <option value="all">All KYC</option>
                       <option value="pending">Pending</option>
@@ -1344,8 +1345,8 @@ export default function AdminConsole() {
                 </div>
 
                 {/* User Table */}
-                <div className="bg-[#0A0F1E] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                  <table className="w-full text-left text-sm">
+                <div className="bg-[#0A0F1E] border border-slate-800 rounded-2xl overflow-x-auto shadow-xl">
+                  <table className="w-full min-w-[760px] text-left text-sm">
                     <thead className="bg-[#131A2E] text-slate-400 border-b border-slate-800 uppercase tracking-wider text-xs font-semibold">
                       <tr>
                         <th className="px-6 py-4">User / Entity</th>
@@ -1451,7 +1452,7 @@ export default function AdminConsole() {
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
-                    <h2 className="text-3xl font-bold text-white font-display">System Logs & Audit Trail</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">System Logs & Audit Trail</h2>
                     <p className="text-slate-400 mt-1">Immutable security event stream, transaction ledgers, and KYC decisions.</p>
                   </div>
                   <div className="flex items-center gap-2">
