@@ -84,7 +84,7 @@ export default function DashboardPage() {
 
   const { toast } = useToast();
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
   // Sync activeTab with URL hash so it persists across reloads
   useEffect(() => {

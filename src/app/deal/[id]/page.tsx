@@ -45,7 +45,7 @@ export default function DealRoomPage() {
     } catch {}
 
     const fetchDealData = async () => {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
       try {
         const token = localStorage.getItem("access_token");
         const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
@@ -108,7 +108,7 @@ export default function DealRoomPage() {
     const messageText = newMessage.trim();
     setNewMessage("");
 
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
     try {
       const token = localStorage.getItem("access_token");
       const res = await fetch(`${API_BASE}/deals/${dealId}/messages`, {
@@ -128,7 +128,7 @@ export default function DealRoomPage() {
 
   const triggerAIDocument = async (type: string) => {
     setGeneratingDoc(type);
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
     try {
       const token = localStorage.getItem("access_token");
       const res = await fetch(`${API_BASE}/deals/${dealId}/generate-document`, {
@@ -293,7 +293,7 @@ export default function DealRoomPage() {
                       {!doc.signedByBuyer && userId === deal?.buyerId && (
                         <button 
                           onClick={async () => {
-                            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+                            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
                             const token = localStorage.getItem("access_token");
                             const res = await fetch(`${API_BASE}/deals/${dealId}/documents/${doc.id}/sign`, {
                               method: "POST",
@@ -312,7 +312,7 @@ export default function DealRoomPage() {
                       {!doc.signedBySeller && userId === deal?.sellerId && (
                         <button 
                           onClick={async () => {
-                            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+                            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
                             const token = localStorage.getItem("access_token");
                             const res = await fetch(`${API_BASE}/deals/${dealId}/documents/${doc.id}/sign`, {
                               method: "POST",

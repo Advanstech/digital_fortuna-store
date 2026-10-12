@@ -92,7 +92,7 @@ export default function SellPage() {
     const timer = setTimeout(async () => {
       setIsValuating(true);
       try {
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
         const res = await fetch(`${API_BASE}/valuation/quick`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -155,7 +155,7 @@ export default function SellPage() {
 
     setIsAutofilling(true);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
       const res = await fetch(`${API_BASE}/ai/autofill-listing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -307,7 +307,7 @@ export default function SellPage() {
         },
       };
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
       const res = await fetch(`${API_BASE}/listings`, {
         method: "POST",
         headers: {

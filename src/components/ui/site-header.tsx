@@ -16,7 +16,7 @@ export function SiteHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { toast } = useToast();
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
   // Read login state on boot
   useEffect(() => {

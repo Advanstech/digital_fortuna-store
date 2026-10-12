@@ -69,7 +69,7 @@ export default function ListingDetailsPage() {
   const [listingForm, setListingForm] = useState<any>({});
   const { toast } = useToast();
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
   useEffect(() => {
     if (typeof window !== "undefined") {

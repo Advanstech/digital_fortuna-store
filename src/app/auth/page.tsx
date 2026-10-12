@@ -30,7 +30,7 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
   const getPostAuthDestination = () => {
     const next = new URLSearchParams(window.location.search).get("next");
     return next?.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/catalog";
