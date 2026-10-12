@@ -1611,7 +1611,7 @@ export default function AdminConsole() {
               </div>
 
               {/* Drawer Content */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-5 custom-scrollbar">
+              <div className="flex-1 min-h-0 overflow-y-auto p-5 custom-scrollbar @container">
                 {loadingUserDetail && (
                   <div className="flex items-center justify-center py-12">
                     <RefreshCw className="w-6 h-6 text-[#0080FF] animate-spin" />
@@ -1638,7 +1638,7 @@ export default function AdminConsole() {
                     </div>
 
                     {isEditingProfile ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
                         {([
                           { key: "displayName", label: "Display Name" },
                           { key: "fullLegalName", label: "Full Legal Name" },
@@ -1661,7 +1661,7 @@ export default function AdminConsole() {
                         ))}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
                         {([
                           { label: "Email", value: selectedUser.email },
                           { label: "Full Legal Name", value: selectedUser.fullLegalName },
@@ -2159,7 +2159,7 @@ export default function AdminConsole() {
                 {/* Main Scrollable Form */}
                 <div
                   id="listing-form-scroll"
-                  className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8 custom-scrollbar"
+                  className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8 custom-scrollbar @container"
                   onScroll={(event) => {
                     const containerTop = event.currentTarget.getBoundingClientRect().top + 140;
                     let currentModule: "general" | "financials" | "compliance" = "general";
@@ -2177,8 +2177,8 @@ export default function AdminConsole() {
                       <h4 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
                         <Briefcase className="w-4 h-4 text-purple-400" /> General Details
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="md:col-span-2">
+                      <div className="grid grid-cols-1 @md:grid-cols-2 gap-6">
+                        <div className="@md:col-span-2">
                           <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Asset Title</label>
                           <input 
                             type="text" 
@@ -2226,7 +2226,7 @@ export default function AdminConsole() {
                       <h4 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
                         <TrendingUp className="w-4 h-4 text-emerald-400" /> Financials & Valuations
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 @md:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider flex justify-between">
                             <span>Acquisition Price</span>
@@ -2286,7 +2286,7 @@ export default function AdminConsole() {
                       <h4 className="text-white text-sm font-bold mb-4 flex items-center gap-2">
                         <BarChart3 className="w-4 h-4 text-[#0080FF]" /> Financial Insights (Auto-calculated)
                       </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 @md:grid-cols-4 gap-4">
                         <div className="bg-[#0A0F1E]/80 backdrop-blur-md p-4 rounded-xl border border-slate-800">
                           <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Annual Run Rate</div>
                           <div className="text-emerald-400 font-mono font-bold text-xl">${(listingForm.revenueArr || (listingForm.revenueMrr * 12) || 0).toLocaleString()}</div>
@@ -2330,7 +2330,7 @@ export default function AdminConsole() {
                         <div>
                           <p className="text-[11px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Due Diligence Documents</p>
                           <p className="text-xs text-slate-500 mb-4">Add secure document links for buyer due diligence. Restrict access to authorized deal participants.</p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
                             {[
                               { key: "pnl", label: "Profit & Loss statement" },
                               { key: "analytics", label: "Analytics report" },
