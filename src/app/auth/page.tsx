@@ -31,9 +31,13 @@ export default function AuthPage() {
   const { toast } = useToast();
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
-  const getPostAuthDestination = () => {
+  const getPostAuthDestination = (role?: string) => {
     const next = new URLSearchParams(window.location.search).get("next");
-    return next?.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/catalog";
+    if (next?.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\")) {
+      return next;
+    }
+    // Sellers go to their dashboard; buyers and everyone else go to the marketplace
+    return role === "seller" ? "/dashboard" : "/catalog";
   };
 
   // Check URL query for signup flag
@@ -89,8 +93,11 @@ export default function AuthPage() {
         if (apiData.access_token) {
           localStorage.setItem("access_token", apiData.access_token);
           localStorage.setItem("refresh_token", apiData.refresh_token);
+          if (apiData.user?.role) {
+            localStorage.setItem("user_role", apiData.user.role);
+          }
           toast("Successfully verified security clearance!", "success");
-          window.location.href = getPostAuthDestination();
+          window.location.href = getPostAuthDestination(apiData.user?.role);
         } else {
           toast(apiData.message || resJson.message || "Invalid 2FA Authenticator code", "error");
         }
@@ -116,8 +123,11 @@ export default function AuthPage() {
       if (apiData.access_token) {
         localStorage.setItem("access_token", apiData.access_token);
         localStorage.setItem("refresh_token", apiData.refresh_token);
+        if (apiData.user?.role) {
+          localStorage.setItem("user_role", apiData.user.role);
+        }
         toast(isLogin ? "Logged in successfully!" : "Registered successfully!", "success");
-        window.location.href = getPostAuthDestination();
+        window.location.href = getPostAuthDestination(apiData.user?.role);
       } else {
         toast(apiData.message || resJson.message || "Authentication failed. Check credentials.", "error");
       }
