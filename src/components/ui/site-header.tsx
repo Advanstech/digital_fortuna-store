@@ -8,6 +8,7 @@ import { Menu, X, LogOut, LayoutDashboard, Compass, PlusCircle, ShieldAlert } fr
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/toast";
 import { CurrencySwitcher } from "@/components/ui/currency-switcher";
+import { NotificationBell } from "@/components/ui/notification-bell";
 
 export function SiteHeader() {
   const router = useRouter();
@@ -99,6 +100,7 @@ export function SiteHeader() {
 
         {/* Action Controls & Responsive Mobile Button */}
         <div className="flex items-center gap-4">
+          <NotificationBell />
           <div className="hidden md:block">
             <CurrencySwitcher />
           </div>

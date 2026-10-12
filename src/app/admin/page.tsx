@@ -342,23 +342,25 @@ export default function AdminConsole() {
     if (!confirm("Are you sure you want to remove/archive this asset from the registry?")) return;
     try {
       const token = localStorage.getItem("access_token");
-      await fetch(`${API_BASE}/listings/${listingId}`, {
+      const res = await fetch(`${API_BASE}/listings/${listingId}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`
         }
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const message = Array.isArray(err.message) ? err.message.join(", ") : err.message;
+        toast(message || `Delete failed (${res.status})`, "error");
+        return;
+      }
       toast("Asset removed from active registry", "success");
       setListingsList((prev: any[]) => prev.filter((l: any) => l.id !== listingId));
       if (selectedListing?.id === listingId) {
         setIsListingDrawerOpen(false);
       }
     } catch {
-      setListingsList((prev: any[]) => prev.filter((l: any) => l.id !== listingId));
-      toast("Asset removed (Local state)", "info");
-      if (selectedListing?.id === listingId) {
-        setIsListingDrawerOpen(false);
-      }
+      toast("Could not reach the listing service. Nothing was deleted.", "error");
     }
   };
 
