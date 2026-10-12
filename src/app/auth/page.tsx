@@ -130,12 +130,15 @@ export default function AuthPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0A0F1E] flex items-center justify-center px-4 relative overflow-hidden pt-24 pb-12">
-      {/* Dynamic Background Auras */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00FF85]/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#0080FF]/10 rounded-full blur-[120px] pointer-events-none" />
-      
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+    <main className="min-h-screen bg-[#0A0F1E] px-4 relative overflow-y-auto pt-24 pb-12">
+      {/* Fixed background auras — content scrolls over them */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00FF85]/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#0080FF]/10 rounded-full blur-[120px]" />
+      </div>
+
+      <div className="min-h-[calc(100vh-9rem)] flex items-center justify-center relative z-10">
+        <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         
         {/* LEFT COLUMN: Highly Impactful Marketing Copy & Real-Time Security Feed */}
         <div className="lg:col-span-5 text-center lg:text-left space-y-6 hidden lg:block">
@@ -342,6 +345,7 @@ export default function AuthPage() {
           </motion.div>
         </div>
 
+      </div>
       </div>
     </main>
   );
