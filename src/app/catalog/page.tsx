@@ -97,7 +97,7 @@ export default function CatalogPage() {
         setListings(result.data.map(formatListing));
         setMeta(result.meta);
       } catch (error) {
-        console.error("Failed to fetch live listings:", error);
+        console.warn("Failed to fetch live listings:", error);
         setListings([]);
         setListingsError("Live listings are temporarily unavailable. Please try again.");
       } finally {

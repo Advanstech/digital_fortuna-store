@@ -66,6 +66,9 @@ export async function getListings(query: ListingQuery = {}): Promise<Paginated<M
 
   const res = await fetch(`${API_BASE}/listings?${params.toString()}`);
   if (!res.ok) {
+    if (res.status >= 500) {
+      throw new Error("The listing service is temporarily unavailable.");
+    }
     throw new Error(`Listings request failed (${res.status})`);
   }
   return unwrap(await res.json());

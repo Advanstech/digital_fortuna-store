@@ -23,7 +23,7 @@ export default function Home() {
     getListings({ limit: 4, sort: "newest" })
       .then(({ data }) => setFeaturedListings(data))
       .catch((error) => {
-        console.error("Failed to load marketplace listings:", error);
+        console.warn("Failed to load marketplace listings:", error);
         setFeaturedError(true);
       })
       .finally(() => setFeaturedLoading(false));

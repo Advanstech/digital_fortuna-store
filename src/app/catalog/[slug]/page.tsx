@@ -168,7 +168,7 @@ export default function ListingDetailsPage() {
           growth: Array.isArray(details.growth) ? details.growth : [],
         });
       } catch (error) {
-        console.error("Failed to load listing dossier:", error);
+        console.warn("Failed to load listing dossier:", error);
         setListing(null);
         setListingError("Unable to connect to the listing service. Check your connection and retry.");
       } finally {
