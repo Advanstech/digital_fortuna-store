@@ -258,12 +258,16 @@ export default function AdminConsole() {
       if (res.ok) {
         const rawJson = await res.json();
         const data = rawJson.data || rawJson;
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setUsersList(data);
         }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        const message = Array.isArray(err.message) ? err.message.join(", ") : err.message;
+        toast(message || `Users request failed (${res.status})`, "error");
       }
-    } catch {
-      // Fallback already loaded
+    } catch (e) {
+      toast("Could not reach the user service. Is the API running?", "error");
     } finally {
       setLoadingUsers(false);
     }
