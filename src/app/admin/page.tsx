@@ -1615,7 +1615,7 @@ export default function AdminConsole() {
               </div>
 
               {/* Drawer Content */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-5 custom-scrollbar @container">
+              <div className="flex-1 min-h-0 overflow-y-auto p-5 custom-scrollbar">
                 {loadingUserDetail && (
                   <div className="flex items-center justify-center py-12">
                     <RefreshCw className="w-6 h-6 text-[#0080FF] animate-spin" />
@@ -1642,7 +1642,7 @@ export default function AdminConsole() {
                     </div>
 
                     {isEditingProfile ? (
-                      <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {([
                           { key: "displayName", label: "Display Name" },
                           { key: "fullLegalName", label: "Full Legal Name" },
@@ -1665,7 +1665,7 @@ export default function AdminConsole() {
                         ))}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {([
                           { label: "Email", value: selectedUser.email },
                           { label: "Full Legal Name", value: selectedUser.fullLegalName },
@@ -2100,12 +2100,12 @@ export default function AdminConsole() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className={`fixed top-0 right-0 h-full bg-[#0A0F1E] border-l border-slate-800 z-50 flex flex-col shadow-2xl transition-all duration-300 ${
-                isDrawerFullScreen ? "w-full sm:w-[90vw] md:w-[85vw]" : "w-full sm:w-[500px]"
+              className={`fixed top-0 right-0 h-full bg-[#0A0F1E] border-l border-slate-800 z-50 flex flex-col shadow-2xl transition-all duration-300 overflow-hidden ${
+                isDrawerFullScreen ? "w-full sm:w-[90vw] md:w-[85vw]" : "w-full sm:w-[560px] lg:w-[640px]"
               }`}
             >
               {/* Drawer Header */}
-              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-800/80 bg-[#131A2E]/50 sticky top-0 z-10">
+              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-800/80 bg-[#131A2E]/50 sticky top-0 z-10 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="bg-[#0080FF]/10 p-2 rounded-lg border border-[#0080FF]/20">
                     <Briefcase className="w-5 h-5 text-[#0080FF]" />
@@ -2137,33 +2137,34 @@ export default function AdminConsole() {
               </div>
 
               {/* Drawer Content Area */}
-              <div className="flex-1 min-h-0 overflow-hidden flex flex-col sm:flex-row bg-[#0A0F1E]">
+              <div className={`flex-1 min-h-0 overflow-hidden flex bg-[#0A0F1E] ${isDrawerFullScreen ? "flex-col sm:flex-row" : "flex-col"}`}>
                 {/* Configuration navigation stays visible while the form content scrolls */}
-                {isDrawerFullScreen && (
-                  <nav aria-label="Asset configuration modules" className="w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-800 bg-[#131A2E]/30 px-3 py-3 sm:p-6 flex flex-row sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto shrink-0">
-                    <div className="hidden sm:block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">Configuration Modules</div>
-                    {[
-                      { id: "general" as const, label: "General Details", icon: <Briefcase className="w-4 h-4" /> },
-                      { id: "financials" as const, label: "Financials & MRR", icon: <TrendingUp className="w-4 h-4" /> },
-                      { id: "compliance" as const, label: "Compliance & Legal", icon: <ShieldCheck className="w-4 h-4" /> },
-                    ].map((module) => (
-                      <button
-                        key={module.id}
-                        type="button"
-                        onClick={() => scrollToListingModule(module.id)}
-                        aria-current={activeListingModule === module.id ? "location" : undefined}
-                        className={`flex items-center gap-3 text-left px-3 py-2.5 rounded-xl text-sm whitespace-nowrap transition-colors shrink-0 ${activeListingModule === module.id ? "bg-[#0080FF]/10 text-[#0080FF] font-semibold" : "text-slate-400 hover:text-white hover:bg-slate-800/50 font-medium"}`}
-                      >
-                        {module.icon} {module.label}
-                      </button>
-                    ))}
-                  </nav>
-                )}
+                <nav aria-label="Asset configuration modules" className={isDrawerFullScreen
+                  ? "w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-800 bg-[#131A2E]/30 px-3 py-3 sm:p-6 flex flex-row sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto shrink-0"
+                  : "w-full border-b border-slate-800 bg-[#131A2E]/30 px-3 py-2 flex flex-row gap-1 overflow-x-auto shrink-0"
+                }>
+                  <div className={`${isDrawerFullScreen ? "hidden sm:block" : "hidden"} text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3`}>Configuration Modules</div>
+                  {[
+                    { id: "general" as const, label: "General Details", icon: <Briefcase className="w-4 h-4" /> },
+                    { id: "financials" as const, label: "Financials & MRR", icon: <TrendingUp className="w-4 h-4" /> },
+                    { id: "compliance" as const, label: "Compliance & Legal", icon: <ShieldCheck className="w-4 h-4" /> },
+                  ].map((module) => (
+                    <button
+                      key={module.id}
+                      type="button"
+                      onClick={() => scrollToListingModule(module.id)}
+                      aria-current={activeListingModule === module.id ? "location" : undefined}
+                      className={`flex items-center gap-3 text-left px-3 py-2.5 rounded-xl text-sm whitespace-nowrap transition-colors shrink-0 ${activeListingModule === module.id ? "bg-[#0080FF]/10 text-[#0080FF] font-semibold" : "text-slate-400 hover:text-white hover:bg-slate-800/50 font-medium"}`}
+                    >
+                      {module.icon} {module.label}
+                    </button>
+                  ))}
+                </nav>
 
                 {/* Main Scrollable Form */}
                 <div
                   id="listing-form-scroll"
-                  className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8 custom-scrollbar @container"
+                  className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8 custom-scrollbar"
                   onScroll={(event) => {
                     const containerTop = event.currentTarget.getBoundingClientRect().top + 140;
                     let currentModule: "general" | "financials" | "compliance" = "general";
@@ -2181,8 +2182,8 @@ export default function AdminConsole() {
                       <h4 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
                         <Briefcase className="w-4 h-4 text-purple-400" /> General Details
                       </h4>
-                      <div className="grid grid-cols-1 @md:grid-cols-2 gap-6">
-                        <div className="@md:col-span-2">
+                      <div className={`grid grid-cols-1 gap-6 ${isDrawerFullScreen ? "sm:grid-cols-2" : ""}`}>
+                        <div className={isDrawerFullScreen ? "sm:col-span-2" : ""}>
                           <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Asset Title</label>
                           <input 
                             type="text" 
@@ -2230,7 +2231,7 @@ export default function AdminConsole() {
                       <h4 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
                         <TrendingUp className="w-4 h-4 text-emerald-400" /> Financials & Valuations
                       </h4>
-                      <div className="grid grid-cols-1 @md:grid-cols-2 gap-6">
+                      <div className={`grid grid-cols-1 gap-6 ${isDrawerFullScreen ? "sm:grid-cols-2" : ""}`}>
                         <div>
                           <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider flex justify-between">
                             <span>Acquisition Price</span>
@@ -2290,7 +2291,7 @@ export default function AdminConsole() {
                       <h4 className="text-white text-sm font-bold mb-4 flex items-center gap-2">
                         <BarChart3 className="w-4 h-4 text-[#0080FF]" /> Financial Insights (Auto-calculated)
                       </h4>
-                      <div className="grid grid-cols-2 @md:grid-cols-4 gap-4">
+                      <div className={`grid grid-cols-2 gap-4 ${isDrawerFullScreen ? "sm:grid-cols-4" : ""}`}>
                         <div className="bg-[#0A0F1E]/80 backdrop-blur-md p-4 rounded-xl border border-slate-800">
                           <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Annual Run Rate</div>
                           <div className="text-emerald-400 font-mono font-bold text-xl">${(listingForm.revenueArr || (listingForm.revenueMrr * 12) || 0).toLocaleString()}</div>
@@ -2334,7 +2335,7 @@ export default function AdminConsole() {
                         <div>
                           <p className="text-[11px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Due Diligence Documents</p>
                           <p className="text-xs text-slate-500 mb-4">Add secure document links for buyer due diligence. Restrict access to authorized deal participants.</p>
-                          <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
+                          <div className={`grid grid-cols-1 gap-4 ${isDrawerFullScreen ? "sm:grid-cols-2" : ""}`}>
                             {[
                               { key: "pnl", label: "Profit & Loss statement" },
                               { key: "analytics", label: "Analytics report" },

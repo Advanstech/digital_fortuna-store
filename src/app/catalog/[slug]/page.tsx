@@ -67,7 +67,17 @@ export default function ListingDetailsPage() {
   const [isDrawerFullScreen, setIsDrawerFullScreen] = useState(false);
   const [isSavingListing, setIsSavingListing] = useState(false);
   const [listingForm, setListingForm] = useState<any>({});
+  const [activeListingModule, setActiveListingModule] = useState<"general" | "financials" | "insights">("general");
   const { toast } = useToast();
+
+  const scrollToListingModule = (module: "general" | "financials" | "insights") => {
+    setActiveListingModule(module);
+    const section = document.getElementById(`catalog-module-${module}`);
+    const scrollContainer = document.getElementById("catalog-form-scroll");
+    if (!section || !scrollContainer) return;
+    const top = scrollContainer.scrollTop + section.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - 24;
+    scrollContainer.scrollTo({ top, behavior: "smooth" });
+  };
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
@@ -614,7 +624,7 @@ export default function ListingDetailsPage() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className={`fixed top-0 right-0 h-full bg-[#0A0F1E] border-l border-slate-800 z-50 flex flex-col shadow-2xl transition-all duration-300 ${
+              className={`fixed top-0 right-0 h-full bg-[#0A0F1E] border-l border-slate-800 z-50 flex flex-col shadow-2xl transition-all duration-300 overflow-hidden ${
                 isDrawerFullScreen ? "w-full sm:w-[92vw]" : "w-full sm:w-[540px]"
               }`}
             >
@@ -651,34 +661,53 @@ export default function ListingDetailsPage() {
               </div>
 
               {/* Drawer Content Body */}
-              <div className="flex-1 overflow-hidden flex flex-col sm:flex-row bg-[#0A0F1E]">
-                {/* Left Nav in Full-Page Mode */}
-                {isDrawerFullScreen && (
-                  <div className="w-64 border-r border-slate-800 bg-[#131A2E]/30 p-6 flex flex-col gap-1 overflow-y-auto shrink-0 hidden sm:flex">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">Management Modules</div>
-                    <button className="flex items-center gap-3 text-left px-3 py-2.5 bg-[#0080FF]/10 text-[#0080FF] rounded-xl text-sm font-semibold transition-colors">
-                      <Briefcase className="w-4 h-4" /> General Parameters
+              <div className={`flex-1 min-h-0 overflow-hidden flex bg-[#0A0F1E] ${isDrawerFullScreen ? "flex-col sm:flex-row" : "flex-col"}`}>
+                {/* Module navigation stays visible while the form scrolls */}
+                <nav aria-label="Asset management modules" className={isDrawerFullScreen
+                  ? "w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-800 bg-[#131A2E]/30 px-3 py-3 sm:p-6 flex flex-row sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto shrink-0"
+                  : "w-full border-b border-slate-800 bg-[#131A2E]/30 px-3 py-2 flex flex-row gap-1 overflow-x-auto shrink-0"
+                }>
+                  <div className={`${isDrawerFullScreen ? "hidden sm:block" : "hidden"} text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3`}>Management Modules</div>
+                  {[
+                    { id: "general" as const, label: "General Parameters", icon: <Briefcase className="w-4 h-4" /> },
+                    { id: "financials" as const, label: "Financials & MRR", icon: <TrendingUp className="w-4 h-4" /> },
+                    { id: "insights" as const, label: "Financial Insights", icon: <BarChart3 className="w-4 h-4" /> },
+                  ].map((module) => (
+                    <button
+                      key={module.id}
+                      type="button"
+                      onClick={() => scrollToListingModule(module.id)}
+                      aria-current={activeListingModule === module.id ? "location" : undefined}
+                      className={`flex items-center gap-3 text-left px-3 py-2.5 rounded-xl text-sm whitespace-nowrap transition-colors shrink-0 ${activeListingModule === module.id ? "bg-[#0080FF]/10 text-[#0080FF] font-semibold" : "text-slate-400 hover:text-white hover:bg-slate-800/50 font-medium"}`}
+                    >
+                      {module.icon} {module.label}
                     </button>
-                    <button className="flex items-center gap-3 text-left px-3 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-xl text-sm font-medium transition-colors">
-                      <TrendingUp className="w-4 h-4" /> Financials & MRR
-                    </button>
-                    <button className="flex items-center gap-3 text-left px-3 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-xl text-sm font-medium transition-colors">
-                      <ShieldCheck className="w-4 h-4" /> Compliance & Registry
-                    </button>
-                  </div>
-                )}
+                  ))}
+                </nav>
 
                 {/* Form Fields */}
-                <div className="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar">
+                <div
+                  id="catalog-form-scroll"
+                  className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8 custom-scrollbar"
+                  onScroll={(event) => {
+                    const containerTop = event.currentTarget.getBoundingClientRect().top + 140;
+                    let currentModule: "general" | "financials" | "insights" = "general";
+                    (["general", "financials", "insights"] as const).forEach((module) => {
+                      const section = document.getElementById(`catalog-module-${module}`);
+                      if (section && section.getBoundingClientRect().top <= containerTop) currentModule = module;
+                    });
+                    if (currentModule !== activeListingModule) setActiveListingModule(currentModule);
+                  }}
+                >
                   <div className={`space-y-8 ${isDrawerFullScreen ? "max-w-4xl mx-auto" : ""}`}>
                     
                     {/* General Details Module */}
-                    <div className="bg-[#131A2E]/50 rounded-2xl border border-slate-800/80 p-6 shadow-lg">
+                    <div id="catalog-module-general" className="scroll-mt-6 bg-[#131A2E]/50 rounded-2xl border border-slate-800/80 p-6 shadow-lg">
                       <h4 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
                         <Briefcase className="w-4 h-4 text-purple-400" /> General Details
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="md:col-span-2">
+                      <div className={`grid grid-cols-1 gap-6 ${isDrawerFullScreen ? "sm:grid-cols-2" : ""}`}>
+                        <div className={isDrawerFullScreen ? "sm:col-span-2" : ""}>
                           <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Asset Title</label>
                           <input 
                             type="text" 
@@ -722,11 +751,11 @@ export default function ListingDetailsPage() {
                     </div>
 
                     {/* Financials & Valuations Module */}
-                    <div className="bg-[#131A2E]/50 rounded-2xl border border-slate-800/80 p-6 shadow-lg">
+                    <div id="catalog-module-financials" className="scroll-mt-6 bg-[#131A2E]/50 rounded-2xl border border-slate-800/80 p-6 shadow-lg">
                       <h4 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
                         <TrendingUp className="w-4 h-4 text-emerald-400" /> Financials & Valuations
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className={`grid grid-cols-1 gap-6 ${isDrawerFullScreen ? "sm:grid-cols-2" : ""}`}>
                         <div>
                           <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider flex justify-between">
                             <span>Acquisition Price</span>
@@ -779,14 +808,14 @@ export default function ListingDetailsPage() {
                     </div>
 
                     {/* Financial Insights Preview */}
-                    <div className="bg-gradient-to-tr from-[#1C2333]/80 to-[#131A2E] border border-[#0080FF]/20 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                    <div id="catalog-module-insights" className="scroll-mt-6 bg-gradient-to-tr from-[#1C2333]/80 to-[#131A2E] border border-[#0080FF]/20 rounded-2xl p-6 shadow-xl relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                         <TrendingUp className="w-24 h-24 text-[#0080FF]" />
                       </div>
                       <h4 className="text-white text-sm font-bold mb-4 flex items-center gap-2">
                         <BarChart3 className="w-4 h-4 text-[#0080FF]" /> Financial Insights (Live Calculated)
                       </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className={`grid grid-cols-2 gap-4 ${isDrawerFullScreen ? "sm:grid-cols-4" : ""}`}>
                         <div className="bg-[#0A0F1E]/80 backdrop-blur-md p-4 rounded-xl border border-slate-800">
                           <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Annual Run Rate</div>
                           <div className="text-emerald-400 font-mono font-bold text-xl">
