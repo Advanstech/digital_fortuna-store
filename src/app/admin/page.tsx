@@ -42,8 +42,11 @@ import {
   Menu,
   X,
   Edit3,
-  Trash2
+  Trash2,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
+import { authenticatedFetch, API_BASE, getValidAccessToken, handleSessionExpired } from "@/lib/auth";
 import { useToast } from "@/components/ui/toast";
 import { Pagination } from "@/components/ui/pagination";
 
@@ -168,7 +171,7 @@ export default function AdminConsole() {
 
   const { toast } = useToast();
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+  // API_BASE is imported from @/lib/auth
 
   useEffect(() => {
     const saved = localStorage.getItem("admin_sidebar_collapsed");
@@ -187,39 +190,62 @@ export default function AdminConsole() {
     });
   };
 
-  // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar collapse
+  // Keyboard shortcuts: Ctrl+B / Cmd+B to toggle sidebar; Escape to exit fullscreen drawer or close drawer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
         e.preventDefault();
         toggleCollapse();
+        return;
+      }
+      if (e.key === "Escape") {
+        if (isUserDrawerOpen) {
+          if (isUserDrawerFullScreen) {
+            setIsUserDrawerFullScreen(false);
+          } else {
+            setIsUserDrawerOpen(false);
+          }
+          return;
+        }
+        if (isListingDrawerOpen) {
+          if (isDrawerFullScreen) {
+            setIsDrawerFullScreen(false);
+          } else {
+            setIsListingDrawerOpen(false);
+          }
+          return;
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isUserDrawerOpen, isUserDrawerFullScreen, isListingDrawerOpen, isDrawerFullScreen]);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      window.location.href = "/auth";
-      return;
-    }
-    setIsAuthorized(true);
-    fetchUsers(token);
-    fetchListings(token);
-    fetchAdminMetrics(token);
-    fetchGtpayTransactions(token);
+    let mounted = true;
+    (async () => {
+      const token = await getValidAccessToken();
+      if (!token) {
+        handleSessionExpired({ returnUrl: "/admin" });
+        return;
+      }
+      if (mounted) {
+        setIsAuthorized(true);
+        fetchUsers();
+        fetchListings();
+        fetchAdminMetrics();
+        fetchGtpayTransactions();
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const fetchGtpayTransactions = async (token?: string) => {
-    const authToken = token || localStorage.getItem("access_token");
-    if (!authToken) return;
+  const fetchGtpayTransactions = async () => {
     setGtpayLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/admin/payments`, {
-        headers: { "Authorization": `Bearer ${authToken}` }
-      });
+      const res = await authenticatedFetch(`${API_BASE}/admin/payments`);
       if (res.ok) {
         const rawJson = await res.json();
         const data = rawJson.data || rawJson;
@@ -231,13 +257,9 @@ export default function AdminConsole() {
     setGtpayLoading(false);
   };
 
-  const fetchAdminMetrics = async (token?: string) => {
-    const authToken = token || localStorage.getItem("access_token");
-    if (!authToken) return;
+  const fetchAdminMetrics = async () => {
     try {
-      const res = await fetch(`${API_BASE}/admin/metrics`, {
-        headers: { "Authorization": `Bearer ${authToken}` }
-      });
+      const res = await authenticatedFetch(`${API_BASE}/admin/metrics`);
       if (res.ok) {
         const rawJson = await res.json();
         setAdminMetrics(rawJson.data || rawJson);
@@ -247,14 +269,10 @@ export default function AdminConsole() {
     }
   };
 
-  const fetchUsers = async (token?: string) => {
-    const authToken = token || localStorage.getItem("access_token");
-    if (!authToken) return;
+  const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/admin/users`, {
-        headers: { "Authorization": `Bearer ${authToken}` }
-      });
+      const res = await authenticatedFetch(`${API_BASE}/auth/admin/users`);
       if (res.ok) {
         const rawJson = await res.json();
         const data = rawJson.data || rawJson;
@@ -264,7 +282,9 @@ export default function AdminConsole() {
       } else {
         const err = await res.json().catch(() => ({}));
         const message = Array.isArray(err.message) ? err.message.join(", ") : err.message;
-        toast(message || `Users request failed (${res.status})`, "error");
+        if (res.status !== 401) {
+          toast(message || `Users request failed (${res.status})`, "error");
+        }
       }
     } catch (e) {
       toast("Could not reach the user service. Is the API running?", "error");
@@ -273,13 +293,10 @@ export default function AdminConsole() {
     }
   };
 
-  const fetchListings = async (token?: string) => {
-    const authToken = token || localStorage.getItem("access_token");
+  const fetchListings = async () => {
     setLoadingListings(true);
     try {
-      const res = await fetch(`${API_BASE}/listings?limit=50`, {
-        headers: authToken ? { "Authorization": `Bearer ${authToken}` } : undefined
-      });
+      const res = await authenticatedFetch(`${API_BASE}/listings?limit=50`);
       if (res.ok) {
         const rawJson = await res.json();
         const data = rawJson.data || rawJson;
@@ -295,12 +312,10 @@ export default function AdminConsole() {
   const handleUpdateListing = async (listingId: string) => {
     setIsSavingListing(true);
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API_BASE}/listings/${listingId}`, {
+      const res = await authenticatedFetch(`${API_BASE}/listings/${listingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify(listingForm)
       });
@@ -321,12 +336,10 @@ export default function AdminConsole() {
 
   const handleQuickStatusChange = async (listingId: string, newStatus: string) => {
     try {
-      const token = localStorage.getItem("access_token");
-      await fetch(`${API_BASE}/listings/${listingId}`, {
+      await authenticatedFetch(`${API_BASE}/listings/${listingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ status: newStatus })
       });
@@ -341,12 +354,8 @@ export default function AdminConsole() {
   const handleDeleteListing = async (listingId: string) => {
     if (!confirm("Are you sure you want to remove/archive this asset from the registry?")) return;
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API_BASE}/listings/${listingId}`, {
+      const res = await authenticatedFetch(`${API_BASE}/listings/${listingId}`, {
         method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -375,10 +384,7 @@ export default function AdminConsole() {
     setIsUserDrawerOpen(true);
     setLoadingUserDetail(true);
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API_BASE}/auth/admin/users/${user.id}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+      const res = await authenticatedFetch(`${API_BASE}/auth/admin/users/${user.id}`);
       if (res.ok) {
         const rawJson = await res.json();
         const detail = rawJson.data || rawJson;
@@ -410,10 +416,9 @@ export default function AdminConsole() {
     if (!selectedUser) return;
     setIsSavingProfile(true);
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API_BASE}/auth/admin/users/${selectedUser.id}/profile`, {
+      const res = await authenticatedFetch(`${API_BASE}/auth/admin/users/${selectedUser.id}/profile`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileEditForm)
       });
       if (res.ok) {
@@ -433,10 +438,9 @@ export default function AdminConsole() {
 
   const handleUpdateRole = async (userId: string, newRole: string) => {
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API_BASE}/auth/admin/users/${userId}/role`, {
+      const res = await authenticatedFetch(`${API_BASE}/auth/admin/users/${userId}/role`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole })
       });
       if (res.ok) {
@@ -498,12 +502,10 @@ export default function AdminConsole() {
     }
     setProcessingKycId(userId);
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API_BASE}/auth/admin/users/${userId}/kyc`, {
+      const res = await authenticatedFetch(`${API_BASE}/auth/admin/users/${userId}/kyc`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ status: newStatus, reason })
       });
@@ -1557,18 +1559,29 @@ export default function AdminConsole() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className={`fixed top-0 right-0 h-full bg-[#0A0F1E] border-l border-slate-800 z-50 flex flex-col shadow-2xl transition-all duration-300 ${
-                isUserDrawerFullScreen ? "w-full sm:w-[90vw] md:w-[85vw]" : "w-full sm:w-[600px] lg:w-[720px]"
+              className={`fixed bg-[#0A0F1E] z-50 flex flex-col shadow-2xl transition-all duration-300 ease-in-out ${
+                isUserDrawerFullScreen
+                  ? "inset-0 w-full h-full border-0"
+                  : "top-0 right-0 h-full w-full sm:w-[600px] lg:w-[740px] border-l border-slate-800"
               }`}
             >
               {/* Drawer Header */}
-              <div className="flex items-center justify-between p-5 border-b border-slate-800/80 bg-[#131A2E]/50 shrink-0">
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800/80 bg-[#131A2E]/50 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-[#0080FF]/20 border border-purple-500/30 flex items-center justify-center text-white font-bold text-sm shrink-0">
                     {(selectedUser.fullLegalName || selectedUser.displayName || selectedUser.email)?.[0]?.toUpperCase() || "?"}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-bold text-white text-lg leading-tight truncate">{selectedUser.fullLegalName || selectedUser.displayName || selectedUser.email}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-white text-lg leading-tight truncate">
+                        {selectedUser.fullLegalName || selectedUser.displayName || selectedUser.email}
+                      </h3>
+                      {isUserDrawerFullScreen && (
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#0080FF]/15 text-[#0080FF] border border-[#0080FF]/30">
+                          Fullscreen Mode
+                        </span>
+                      )}
+                    </div>
                     <p className="text-slate-400 text-xs truncate">{selectedUser.email}</p>
                   </div>
                 </div>
@@ -1576,15 +1589,28 @@ export default function AdminConsole() {
                   <button
                     type="button"
                     onClick={() => setIsUserDrawerFullScreen(!isUserDrawerFullScreen)}
-                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
-                    title={isUserDrawerFullScreen ? "Collapse Width" : "Expand Full Width"}
-                    aria-label={isUserDrawerFullScreen ? "Collapse user detail panel" : "Expand user detail panel"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-slate-300 hover:text-white bg-slate-800/70 hover:bg-slate-800 border border-slate-700/60 rounded-xl transition-all text-xs font-semibold shadow-sm"
+                    title={isUserDrawerFullScreen ? "Return to Normal Drawer (Esc)" : "Expand to Fullscreen"}
+                    aria-label={isUserDrawerFullScreen ? "Exit fullscreen view" : "Enter fullscreen view"}
                   >
-                    {isUserDrawerFullScreen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+                    {isUserDrawerFullScreen ? (
+                      <>
+                        <Minimize2 className="w-3.5 h-3.5 text-[#0080FF]" />
+                        <span>Return Normal</span>
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
+                        <span>Fullscreen</span>
+                      </>
+                    )}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setIsUserDrawerOpen(false)}
+                    onClick={() => {
+                      setIsUserDrawerOpen(false);
+                      setIsUserDrawerFullScreen(false);
+                    }}
                     className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
                     aria-label="Close user details"
                   >
@@ -1618,6 +1644,7 @@ export default function AdminConsole() {
 
               {/* Drawer Content */}
               <div className="flex-1 min-h-0 overflow-y-auto p-5 custom-scrollbar">
+                <div className={isUserDrawerFullScreen ? "max-w-6xl mx-auto w-full py-2" : ""}>
                 {loadingUserDetail && (
                   <div className="flex items-center justify-center py-12">
                     <RefreshCw className="w-6 h-6 text-[#0080FF] animate-spin" />
@@ -2046,6 +2073,7 @@ export default function AdminConsole() {
                     </div>
                   </div>
                 )}
+                </div>
               </div>
 
               {/* Drawer Footer - Quick Actions */}
@@ -2102,8 +2130,10 @@ export default function AdminConsole() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className={`fixed top-0 right-0 h-full bg-[#0A0F1E] border-l border-slate-800 z-50 flex flex-col shadow-2xl transition-all duration-300 overflow-hidden ${
-                isDrawerFullScreen ? "w-full sm:w-[90vw] md:w-[85vw]" : "w-full sm:w-[560px] lg:w-[640px]"
+              className={`fixed bg-[#0A0F1E] z-50 flex flex-col shadow-2xl transition-all duration-300 ease-in-out overflow-hidden ${
+                isDrawerFullScreen
+                  ? "inset-0 w-full h-full border-0"
+                  : "top-0 right-0 h-full w-full sm:w-[560px] lg:w-[680px] border-l border-slate-800"
               }`}
             >
               {/* Drawer Header */}
@@ -2113,24 +2143,46 @@ export default function AdminConsole() {
                     <Briefcase className="w-5 h-5 text-[#0080FF]" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-lg leading-tight">Edit Asset: {selectedListing.title}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-white text-lg leading-tight">Edit Asset: {selectedListing.title}</h3>
+                      {isDrawerFullScreen && (
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#0080FF]/15 text-[#0080FF] border border-[#0080FF]/30">
+                          Fullscreen Mode
+                        </span>
+                      )}
+                    </div>
                     <p className="text-slate-500 text-xs font-mono">{selectedListing.id}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="hidden sm:flex items-center gap-2 mr-4 bg-[#1C2333] px-3 py-1.5 rounded-lg border border-slate-800">
+                  <div className="hidden sm:flex items-center gap-2 mr-2 bg-[#1C2333] px-3 py-1.5 rounded-lg border border-slate-800">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-xs font-bold text-emerald-400 tracking-wider uppercase">Live Sync</span>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setIsDrawerFullScreen(!isDrawerFullScreen)}
-                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 hover:border-slate-700 border border-transparent rounded-xl transition-all"
-                    title={isDrawerFullScreen ? "Collapse Width" : "Expand Full Width"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-slate-300 hover:text-white bg-slate-800/70 hover:bg-slate-800 border border-slate-700/60 rounded-xl transition-all text-xs font-semibold shadow-sm"
+                    title={isDrawerFullScreen ? "Return to Normal Drawer (Esc)" : "Expand to Fullscreen"}
                   >
-                    {isDrawerFullScreen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+                    {isDrawerFullScreen ? (
+                      <>
+                        <Minimize2 className="w-3.5 h-3.5 text-[#0080FF]" />
+                        <span>Return Normal</span>
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
+                        <span>Fullscreen</span>
+                      </>
+                    )}
                   </button>
                   <button
-                    onClick={() => setIsListingDrawerOpen(false)}
+                    type="button"
+                    onClick={() => {
+                      setIsListingDrawerOpen(false);
+                      setIsDrawerFullScreen(false);
+                    }}
                     className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 hover:border-slate-700 border border-transparent rounded-xl transition-all"
                   >
                     <X className="w-5 h-5" />

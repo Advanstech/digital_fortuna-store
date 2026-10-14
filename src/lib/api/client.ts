@@ -1,15 +1,11 @@
 /**
  * Centralized API client for Digital Fortuna Computing.
- * All API calls should use this instead of hardcoding localhost URLs.
+ * Uses authenticatedFetch for proactive auto-refresh and session security.
  */
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+import { authenticatedFetch, API_BASE } from "@/lib/auth";
 
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("access_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+export { API_BASE } from "@/lib/auth";
 
 interface RequestOptions {
   method?: string;
@@ -37,11 +33,11 @@ export async function api<T = any>(
   const finalHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     ...headers,
-    ...(auth ? getAuthHeaders() : {}),
   };
 
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const fetchFn = auth ? authenticatedFetch : fetch;
+    const res = await fetchFn(`${API_BASE}${path}`, {
       method,
       headers: finalHeaders,
       body: body ? JSON.stringify(body) : undefined,

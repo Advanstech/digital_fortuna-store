@@ -15,7 +15,7 @@ type NotificationItem = {
   createdAt: string;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+import { authenticatedFetch, API_BASE, getValidAccessToken } from "@/lib/auth";
 
 const TYPE_ICON: Record<string, typeof Bell> = {
   kyc: ShieldCheck,
@@ -56,12 +56,14 @@ export function NotificationBell() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(async () => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
+    const token = await getValidAccessToken();
+    if (!token) {
+      setIsLoggedIn(false);
+      return;
+    }
+    setIsLoggedIn(true);
     try {
-      const res = await fetch(`${API_BASE}/notifications?limit=30`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authenticatedFetch(`${API_BASE}/notifications?limit=30`);
       if (!res.ok) return;
       const raw = await res.json();
       const data = raw.data || raw;
@@ -73,12 +75,21 @@ export function NotificationBell() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    setIsLoggedIn(!!token);
-    if (!token) return;
-    fetchNotifications();
+    let mounted = true;
+    (async () => {
+      const token = await getValidAccessToken();
+      if (mounted) {
+        setIsLoggedIn(!!token);
+        if (token) {
+          fetchNotifications();
+        }
+      }
+    })();
     const interval = setInterval(fetchNotifications, 45000);
-    return () => clearInterval(interval);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, [fetchNotifications]);
 
   // Close on outside click / Escape
@@ -101,28 +112,22 @@ export function NotificationBell() {
   }, [isOpen]);
 
   const markRead = async (id: string) => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     setUnread((prev) => Math.max(0, prev - 1));
     try {
-      await fetch(`${API_BASE}/notifications/${id}/read`, {
+      await authenticatedFetch(`${API_BASE}/notifications/${id}/read`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
       });
     } catch {}
   };
 
   const markAllRead = async () => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
     setLoading(true);
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnread(0);
     try {
-      await fetch(`${API_BASE}/notifications/read-all`, {
+      await authenticatedFetch(`${API_BASE}/notifications/read-all`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
       });
     } catch {} finally {
       setLoading(false);

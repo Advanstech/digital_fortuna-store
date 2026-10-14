@@ -33,6 +33,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 
 import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 import { useCurrency } from "@/lib/currency";
+import { authenticatedFetch, API_BASE, getValidAccessToken, handleSessionExpired, parseJwtPayload } from "@/lib/auth";
 
 type TabType = "overview" | "payments" | "adgenie" | "profile" | "settings" | "admin";
 
@@ -93,8 +94,6 @@ export default function DashboardPage() {
 
   const { toast } = useToast();
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
-
   // Sync activeTab with URL hash so it persists across reloads
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.hash) {
@@ -116,33 +115,29 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
     const initDashboard = async () => {
       try {
-        const token = localStorage.getItem("access_token");
+        const token = await getValidAccessToken();
         if (!token) {
-          window.location.href = "/auth";
+          handleSessionExpired({ returnUrl: "/dashboard" });
           return;
         }
 
         // Decode JWT to get initial user context (will be overridden by /auth/me)
-        try {
-          const payloadBase64 = token.split('.')[1];
-          const payloadDecoded = JSON.parse(atob(payloadBase64));
+        const payloadDecoded = parseJwtPayload(token);
+        if (payloadDecoded && mounted) {
           setUserContext({
             email: payloadDecoded.email || "",
             role: payloadDecoded.role || "buyer",
             userId: payloadDecoded.sub || ""
           });
-        } catch (e) {
-          console.error("JWT Decode error", e);
         }
 
         // Fetch User Profile for KYC & Live DB Role
         try {
-          const meRes = await fetch(`${API_BASE}/auth/me`, {
-            headers: { "Authorization": `Bearer ${token}` }
-          });
-          if (meRes.ok) {
+          const meRes = await authenticatedFetch(`${API_BASE}/auth/me`);
+          if (meRes.ok && mounted) {
             const rawJson = await meRes.json();
             const meData = rawJson.data || rawJson;
             setKycStatus(meData.kycStatus || "unverified");
@@ -178,13 +173,9 @@ export default function DashboardPage() {
           console.error("Failed to fetch profile", e);
         }
 
-        const res = await fetch(`${API_BASE}/deals/my-deals`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
+        const res = await authenticatedFetch(`${API_BASE}/deals/my-deals`);
 
-        if (res.ok) {
+        if (res.ok && mounted) {
           const data = await res.json();
           // unwrap if NestJS interceptor wrapped it
           const actualDeals = data.data || data || [];
@@ -193,21 +184,22 @@ export default function DashboardPage() {
       } catch (error) {
         console.error("Failed to fetch deals:", error);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     initDashboard();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const loadPayments = async () => {
     setPaymentsLoading(true);
     try {
-      const token = localStorage.getItem("access_token");
-      if (!token) return;
       const [pmtRes, feeRes] = await Promise.all([
-        fetch(`${API_BASE}/payments/my-payments`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/payments/my-fees`, { headers: { Authorization: `Bearer ${token}` } }),
+        authenticatedFetch(`${API_BASE}/payments/my-payments`),
+        authenticatedFetch(`${API_BASE}/payments/my-fees`),
       ]);
       if (pmtRes.ok) {
         const d = await pmtRes.json();
@@ -235,12 +227,10 @@ export default function DashboardPage() {
   const handleContactBroker = async () => {
     setContactingBroker(true);
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API_BASE}/brokers/contact`, {
+      const res = await authenticatedFetch(`${API_BASE}/brokers/contact`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ message: "I need assistance with M&A strategy for my portfolio." })
       });
@@ -262,10 +252,8 @@ export default function DashboardPage() {
     if (!kycTermsChecked || isAcceptingKycTerms) return;
     setIsAcceptingKycTerms(true);
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API_BASE}/auth/kyc/accept-terms`, {
+      const res = await authenticatedFetch(`${API_BASE}/auth/kyc/accept-terms`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}` },
       });
       const responseJson = await res.json().catch(() => ({}));
       const responseData = responseJson.data || responseJson;
@@ -273,9 +261,7 @@ export default function DashboardPage() {
         setKycTermsAccepted(true);
         setKycStep(2);
       } else if (res.status === 401) {
-        toast("Your session has expired. Redirecting to login...", "error");
-        localStorage.removeItem("access_token");
-        setTimeout(() => window.location.href = "/auth", 1500);
+        handleSessionExpired({ returnUrl: "/dashboard" });
       } else {
         toast(responseData.message || "Could not save Terms of Verification acceptance.", "error");
       }
@@ -298,12 +284,10 @@ export default function DashboardPage() {
     }
     setKycSubmitting(true);
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API_BASE}/auth/kyc/submit`, {
+      const res = await authenticatedFetch(`${API_BASE}/auth/kyc/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify(kycForm)
       });
@@ -314,9 +298,7 @@ export default function DashboardPage() {
           setProfileForm(prev => ({ ...prev, displayName: kycForm.fullLegalName }));
         }
       } else if (res.status === 401) {
-        toast("Your session has expired. Redirecting to login...", "error");
-        localStorage.removeItem("access_token");
-        setTimeout(() => window.location.href = "/auth", 1500);
+        handleSessionExpired({ returnUrl: "/dashboard" });
       } else {
         toast("Failed to submit KYC", "error");
       }
@@ -366,14 +348,12 @@ export default function DashboardPage() {
     };
     setIsSavingProfile(true);
     try {
-      const token = localStorage.getItem("access_token");
       const payload: Record<string, string> = { ...submittedProfile };
       if (submittedProfile.displayName) payload.fullLegalName = submittedProfile.displayName;
-      const res = await fetch(`${API_BASE}/auth/profile`, {
+      const res = await authenticatedFetch(`${API_BASE}/auth/profile`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
@@ -388,9 +368,7 @@ export default function DashboardPage() {
         }
         toast("Profile updated successfully.", "success");
       } else if (res.status === 401) {
-        toast("Your session has expired. Redirecting to login...", "error");
-        localStorage.removeItem("access_token");
-        setTimeout(() => window.location.href = "/auth", 1500);
+        handleSessionExpired({ returnUrl: "/dashboard" });
       } else {
         const errorMessage = Array.isArray(profile.message) ? profile.message.join(", ") : profile.message;
         toast(errorMessage || "Failed to update profile.", "error");

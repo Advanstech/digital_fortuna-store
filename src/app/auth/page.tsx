@@ -18,7 +18,8 @@ import {
   EyeOff,
   Briefcase,
   ShoppingBag,
-  ArrowLeft
+  ArrowLeft,
+  ShieldAlert
 } from "lucide-react";
 
 export default function AuthPage() {
@@ -32,24 +33,35 @@ export default function AuthPage() {
   const [needs2FA, setNeeds2FA] = useState(false);
   const [userId, setUserId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
   const { toast } = useToast();
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+
   const getPostAuthDestination = (role?: string) => {
-    const next = new URLSearchParams(window.location.search).get("next");
-    if (next?.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\")) {
-      return next;
+    if (typeof window === "undefined") return "/catalog";
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get("returnUrl") || params.get("next");
+    if (target?.startsWith("/") && !target.startsWith("//") && !target.startsWith("/\\")) {
+      return target;
+    }
+    const normalizedRole = role?.toLowerCase();
+    if (normalizedRole === "admin" || normalizedRole === "super_admin") {
+      return "/admin";
     }
     // Sellers go to their dashboard; buyers and everyone else go to the marketplace
-    return role === "seller" ? "/dashboard" : "/catalog";
+    return normalizedRole === "seller" ? "/dashboard" : "/catalog";
   };
 
-  // Check URL query for signup flag
+  // Check URL query for signup flag or expired session flag
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("signup") === "true") {
         setIsLogin(false);
+      }
+      if (params.get("expired") === "1" || params.get("expired") === "true") {
+        setSessionExpiredNotice(true);
       }
     }
   }, []);
@@ -209,6 +221,22 @@ export default function AuthPage() {
                       : (isLogin ? "Enter credentials to load your security clearance folder." : signupRole === "seller" ? "Create your seller account to list and manage your business." : signupRole === "buyer" ? "Create your buyer account to discover and acquire digital businesses." : "Choose how you want to use Digital Fortuna."))}
               </p>
             </div>
+
+            {sessionExpiredNotice && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300"
+              >
+                <ShieldAlert className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-200 text-sm">Session Expired</p>
+                  <p className="text-amber-300/80 mt-0.5">
+                    For your security, your session token has timed out. Please sign in below to return directly to your work.
+                  </p>
+                </div>
+              </motion.div>
+            )}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               {!isLogin && signupRole && !needs2FA && !isResetPassword && (
